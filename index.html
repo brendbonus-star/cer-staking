@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CER Staking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, #a0a0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.6;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .pool-status {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-active {
+            color: #00ff88;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 8px 20px;
+            border-radius: 40px;
+        }
+
+        .status-inactive {
+            color: #ff4444;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 68, 68, 0.1);
+            padding: 8px 20px;
+            border-radius: 40px;
+        }
+
+        .wallet-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+            word-break: break-all;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .stake-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stake-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stake-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            opacity: 0.6;
+        }
+
+        .value {
+            font-weight: 600;
+        }
+
+        .value-large {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: #0088cc;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        input:disabled, select:disabled {
+            opacity: 0.5;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0088cc, #0066aa);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .max-hint {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: right;
+            margin-top: -5px;
+            margin-bottom: 10px;
+        }
+
+        .profit {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .profit-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        hr {
+            border-color: rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+        }
+    </style>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 CER STAKING</h1>
+        <div class="subtitle">до 100% годовых</div>
+
+        <!-- Статус пула -->
+        <div class="card">
+            <div class="pool-status">
+                <div id="pool-status-indicator" class="status-inactive">
+                    ⚪ Загрузка...
+                </div
