@@ -117,8 +117,6 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const API_KEY = "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb";
-        
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
@@ -165,11 +163,12 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                const url = `https://toncenter.com/api/v2/runGetMethod?address=${STAKING_ADDRESS}&method=getRewardPool&stack=&api_key=${API_KEY}`;
+                // Используем dton.io API (публичный, без ключа)
+                const url = `https://dton.io/api/v1/accounts/${STAKING_ADDRESS}/runGetMethod?method=getRewardPool`;
                 const response = await fetch(url);
                 const data = await response.json();
                 
-                if (data.ok && data.result && data.result.stack && data.result.stack[0]) {
+                if (data && data.result && data.result.stack && data.result.stack[0]) {
                     rewardPool = parseInt(data.result.stack[0][1], 16);
                     if (rewardPool > 0) {
                         statusSpan.innerHTML = '✅ Активен';
