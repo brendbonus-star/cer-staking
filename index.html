@@ -74,7 +74,7 @@
 
         <div class="card">
             <div class="pool-status">
-                <span id="pool-status-text" class="status-inactive">⏳ Загрузка...</span>
+                <span id="pool-status-text" class="status-inactive">❌ Неактивен</span>
             </div>
         </div>
 
@@ -200,7 +200,7 @@
 
         checkPoolStatus();
         initTonConnect();
-        setInterval(checkPoolStatus, 15000);
+        setInterval(checkPoolStatus, 10000);
     </script>
 </body>
 </html>
