@@ -223,4 +223,144 @@
             <div class="pool-status">
                 <div id="pool-status-indicator" class="status-inactive">
                     ⚪ Загрузка...
-                </div
+                </div>
+            </div>
+        </div>
+
+        <!-- Подключение кошелька -->
+        <div class="card">
+            <div id="wallet-status" class="wallet-info">⚡ Кошелек не подключен</div>
+            <button id="connect-btn" class="btn-primary">🔌 Подключить кошелек</button>
+        </div>
+
+        <!-- Информация о стейке -->
+        <div class="card">
+            <h3>📊 Мой стейк</h3>
+            <div id="stake-info">Загрузка...</div>
+        </div>
+
+        <!-- Новый стейк -->
+        <div class="card">
+            <h3>💸 Новый стейк</h3>
+            <input type="number" id="amount" placeholder="Сумма CER" value="100">
+            <select id="lock-days">
+                <option value="30">30 дней — 8.22% годовых</option>
+                <option value="90">90 дней — 24.66% годовых</option>
+                <option value="180">180 дней — 49.32% годовых</option>
+                <option value="365">365 дней — 100% годовых</option>
+            </select>
+            <div class="profit">
+                Доход: <span id="profit-display" class="profit-value">0</span> CER
+            </div>
+            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
+        </div>
+
+        <!-- Забрать стейк -->
+        <div class="card">
+            <button id="unstake-btn" class="btn-secondary">📤 Забрать стейк</button>
+        </div>
+    </div>
+
+    <script>
+        // Адрес стейкинг-контракта
+        const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
+        
+        // Адрес Jetton Master CER
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        
+        let tonConnectUI;
+        
+        // Функция расчета дохода
+        function calculateProfit(amount, days) {
+            const rate = (days / 365) * 100;
+            return (amount * rate / 100).toFixed(2);
+        }
+        
+        // Обновление отображения дохода
+        document.getElementById('lock-days').addEventListener('change', () => {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const days = parseInt(document.getElementById('lock-days').value);
+            document.getElementById('profit-display').textContent = calculateProfit(amount, days);
+        });
+        document.getElementById('amount').addEventListener('input', () => {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const days = parseInt(document.getElementById('lock-days').value);
+            document.getElementById('profit-display').textContent = calculateProfit(amount, days);
+        });
+        
+        // Инициализация TonConnect
+        async function initTonConnect() {
+            tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+                manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
+                buttonRootId: 'connect-btn'
+            });
+            
+            tonConnectUI.onStatusChange(async (wallet) => {
+                if (wallet) {
+                    document.getElementById('wallet-status').innerHTML = `✅ Кошелек: ${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
+                    await loadStakeInfo(wallet.account.address);
+                } else {
+                    document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
+                    document.getElementById('stake-info').innerHTML = 'Подключите кошелек';
+                }
+            });
+        }
+        
+        // Загрузка информации о стейке
+        async function loadStakeInfo(address) {
+            // Временно: показываем заглушку
+            document.getElementById('stake-info').innerHTML = 'Застейкано: 0 CER<br>Накоплено: 0 CER<br>Разблокируется: —';
+        }
+        
+        // Стейкинг
+        document.getElementById('stake-btn').addEventListener('click', async () => {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const days = parseInt(document.getElementById('lock-days').value);
+            
+            if (!amount || amount <= 0) {
+                alert('Введите сумму');
+                return;
+            }
+            
+            const comment = `stake:${days}`;
+            
+            const tx = {
+                validUntil: Math.floor(Date.now() / 1000) + 600,
+                messages: [{
+                    address: STAKING_ADDRESS,
+                    amount: amount.toString(),
+                    payload: comment
+                }]
+            };
+            
+            try {
+                await tonConnectUI.sendTransaction(tx);
+                alert('Стейкинг отправлен!');
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+            }
+        });
+        
+        // Анстейкинг
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
+            const tx = {
+                validUntil: Math.floor(Date.now() / 1000) + 600,
+                messages: [{
+                    address: STAKING_ADDRESS,
+                    amount: "0",
+                    payload: "unstake"
+                }]
+            };
+            
+            try {
+                await tonConnectUI.sendTransaction(tx);
+                alert('Запрос на вывод отправлен!');
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+            }
+        });
+        
+        initTonConnect();
+    </script>
+</body>
+</html>
