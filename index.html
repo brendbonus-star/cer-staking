@@ -64,6 +64,8 @@
         .value { font-weight: 600; }
         .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
         .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
+        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
+        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
@@ -101,7 +103,9 @@
                 <option value="180">180 дней — 49.32% годовых</option>
                 <option value="365">365 дней — 100% годовых</option>
             </select>
+            <div id="max-hint" class="max-hint"></div>
             <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
+            <div id="warning" class="warning"></div>
             <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
         </div>
 
@@ -114,21 +118,52 @@
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
         let tonConnectUI;
         let walletAddress = null;
+        let rewardPool = 0;
+        let totalStaked = 0;
+
+        function calculateMaxAmount(days) {
+            // Формула: максимум = rewardPool * (365 / days)
+            // Так как проценты = сумма * days/365 * 100%
+            if (rewardPool <= 0) return 0;
+            return Math.floor(rewardPool * 365 / days);
+        }
 
         function calculateProfit(amount, days) {
+            if (amount <= 0) return 0;
+            const maxAllowed = calculateMaxAmount(days);
+            if (amount > maxAllowed && maxAllowed > 0) {
+                return 0;
+            }
             return ((amount * days / 365 * 100) / 100).toFixed(2);
         }
 
-        document.getElementById('lock-days').addEventListener('change', () => {
+        function updateUI() {
             const amount = parseFloat(document.getElementById('amount').value) || 0;
             const days = parseInt(document.getElementById('lock-days').value);
-            document.getElementById('profit-display').textContent = calculateProfit(amount, days);
-        });
-        document.getElementById('amount').addEventListener('input', () => {
-            const amount = parseFloat(document.getElementById('amount').value) || 0;
-            const days = parseInt(document.getElementById('lock-days').value);
-            document.getElementById('profit-display').textContent = calculateProfit(amount, days);
-        });
+            const maxAllowed = calculateMaxAmount(days);
+            const warningDiv = document.getElementById('warning');
+            const stakeBtn = document.getElementById('stake-btn');
+            
+            if (rewardPool > 0 && maxAllowed > 0) {
+                document.getElementById('max-hint').innerHTML = `Максимум: ${maxAllowed} CER`;
+                if (amount > maxAllowed) {
+                    warningDiv.innerHTML = '⚠️ Сумма превышает доступный лимит пула';
+                    stakeBtn.disabled = true;
+                    document.getElementById('profit-display').textContent = '0';
+                } else {
+                    warningDiv.innerHTML = '';
+                    stakeBtn.disabled = false;
+                    document.getElementById('profit-display').textContent = calculateProfit(amount, days);
+                }
+            } else {
+                document.getElementById('max-hint').innerHTML = 'Пул пуст, стейкинг недоступен';
+                stakeBtn.disabled = true;
+                document.getElementById('profit-display').textContent = '0';
+            }
+        }
+
+        document.getElementById('lock-days').addEventListener('change', updateUI);
+        document.getElementById('amount').addEventListener('input', updateUI);
 
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
@@ -136,8 +171,8 @@
                 const response = await fetch(`https://toncenter.com/api/v2/runGetMethod?address=${STAKING_ADDRESS}&method=getRewardPool&stack=`);
                 const data = await response.json();
                 if (data.ok && data.result && data.result.stack && data.result.stack[0]) {
-                    const poolValue = parseInt(data.result.stack[0][1], 16);
-                    if (poolValue > 0) {
+                    rewardPool = parseInt(data.result.stack[0][1], 16);
+                    if (rewardPool > 0) {
                         statusSpan.innerHTML = '✅ Активен';
                         statusSpan.className = 'status-active';
                     } else {
@@ -145,12 +180,16 @@
                         statusSpan.className = 'status-inactive';
                     }
                 } else {
+                    rewardPool = 0;
                     statusSpan.innerHTML = '❌ Неактивен';
                     statusSpan.className = 'status-inactive';
                 }
+                updateUI();
             } catch (e) {
+                rewardPool = 0;
                 statusSpan.innerHTML = '❌ Неактивен';
                 statusSpan.className = 'status-inactive';
+                updateUI();
             }
         }
 
@@ -177,7 +216,11 @@
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
+            const maxAllowed = calculateMaxAmount(days);
+            
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
+            if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
+            
             try {
                 await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -200,7 +243,7 @@
 
         checkPoolStatus();
         initTonConnect();
-        setInterval(checkPoolStatus, 10000);
+        setInterval(checkPoolStatus, 15000);
     </script>
 </body>
 </html>
