@@ -235,7 +235,6 @@
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
             try {
-                // Формируем комментарий как строку
                 const comment = `stake:${days}`;
                 
                 await tonConnectUI.sendTransaction({
@@ -243,7 +242,9 @@
                     messages: [{
                         address: STAKING_ADDRESS,
                         amount: amount.toString(),
-                        payload: comment
+                        payload: {
+                            text: comment
+                        }
                     }]
                 });
                 alert('Стейкинг отправлен!');
@@ -260,7 +261,9 @@
                     messages: [{
                         address: STAKING_ADDRESS,
                         amount: "0",
-                        payload: "unstake"
+                        payload: {
+                            text: "unstake"
+                        }
                     }]
                 });
                 alert('Запрос на вывод отправлен!');
