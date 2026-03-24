@@ -67,17 +67,17 @@
         .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
         .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
         .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
-        .address-box {
-            background: rgba(0, 0, 0, 0.5);
+        .user-balance {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
             padding: 12px;
-            border-radius: 12px;
-            font-family: monospace;
-            word-break: break-all;
-            margin: 10px 0;
+            margin-bottom: 15px;
+            text-align: center;
         }
-        .copy-btn {
-            background: #2c2c2c;
-            margin-top: 5px;
+        .user-balance span {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 18px;
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
@@ -100,6 +100,9 @@
         </div>
 
         <div class="card">
+            <div id="user-balance" class="user-balance">
+                💎 Ваш баланс CER: <span id="cer-balance">0</span>
+            </div>
             <div class="stake-info">
                 <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
                 <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
@@ -119,12 +122,7 @@
             <div id="max-hint" class="max-hint"></div>
             <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
             <div id="warning" class="warning"></div>
-            
-            <div class="address-box" id="staking-address">
-                EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs
-            </div>
-            <button id="copy-address" class="copy-btn">📋 Копировать адрес</button>
-            <button id="stake-instruction" class="btn-primary">📖 Как стейкать</button>
+            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
         </div>
 
         <div class="card">
@@ -134,10 +132,13 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
+        let userBalance = 0;
+        let jettonWallet = null;
         let myStake = 0;
         let myReward = 0;
         let unlockTime = 0;
@@ -159,12 +160,15 @@
             const days = parseInt(document.getElementById('lock-days').value);
             const maxAllowed = calculateMaxAmount(days);
             const warningDiv = document.getElementById('warning');
-            const stakeBtn = document.getElementById('stake-instruction');
+            const stakeBtn = document.getElementById('stake-btn');
             
-            if (rewardPool > 0 && maxAllowed > 0) {
-                document.getElementById('max-hint').innerHTML = `Максимум: ${maxAllowed} CER (пул: ${rewardPool} CER)`;
-                if (amount > maxAllowed) {
-                    warningDiv.innerHTML = '⚠️ Сумма превышает доступный лимит пула';
+            // Ограничение по балансу пользователя
+            const maxByBalance = Math.min(userBalance, maxAllowed);
+            
+            if (rewardPool > 0 && maxAllowed > 0 && userBalance > 0) {
+                document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance} CER (пул: ${rewardPool} CER, ваш баланс: ${userBalance} CER)`;
+                if (amount > maxByBalance) {
+                    warningDiv.innerHTML = '⚠️ Сумма превышает ваш баланс или лимит пула';
                     stakeBtn.disabled = true;
                     document.getElementById('profit-display').textContent = '0';
                 } else {
@@ -173,7 +177,7 @@
                     document.getElementById('profit-display').textContent = calculateProfit(amount, days);
                 }
             } else {
-                document.getElementById('max-hint').innerHTML = 'Пул пуст, стейкинг недоступен';
+                document.getElementById('max-hint').innerHTML = 'Пул пуст или нет CER на кошельке';
                 stakeBtn.disabled = true;
                 document.getElementById('profit-display').textContent = '0';
             }
@@ -186,6 +190,7 @@
             } else {
                 document.getElementById('unlock-date').textContent = '—';
             }
+            document.getElementById('cer-balance').textContent = userBalance;
         }
 
         async function getRewardPoolDirect() {
@@ -229,6 +234,23 @@
             }
         }
 
+        async function getUserBalance(address) {
+            try {
+                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data && data.balances && data.balances.length > 0) {
+                    const balance = parseInt(data.balances[0].balance);
+                    jettonWallet = data.balances[0].wallet_address.address;
+                    return balance / 1e9;
+                }
+                return 0;
+            } catch (e) {
+                console.error('Error getting user balance:', e);
+                return 0;
+            }
+        }
+
         async function initTonConnect() {
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
@@ -240,10 +262,15 @@
                     walletAddress = wallet.account.address;
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
+                    userBalance = await getUserBalance(walletAddress);
+                    updateUI();
                 } else {
                     walletAddress = null;
+                    jettonWallet = null;
+                    userBalance = 0;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
+                    updateUI();
                 }
             });
         }
@@ -251,18 +278,59 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        document.getElementById('copy-address').addEventListener('click', () => {
-            navigator.clipboard.writeText(STAKING_ADDRESS);
-            alert('Адрес скопирован!');
+        document.getElementById('stake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
+            const amount = parseFloat(document.getElementById('amount').value);
+            const days = parseInt(document.getElementById('lock-days').value);
+            const maxAllowed = calculateMaxAmount(days);
+            const maxByBalance = Math.min(userBalance, maxAllowed);
+            
+            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
+            if (amount > maxByBalance) { alert('Сумма превышает ваш баланс или лимит пула'); return; }
+            
+            try {
+                // Проверяем, что jettonWallet получен
+                if (!jettonWallet) {
+                    await getUserBalance(walletAddress);
+                }
+                if (!jettonWallet) {
+                    throw new Error('Не удалось найти Jetton-кошелек для CER');
+                }
+                
+                const amountInNano = Math.floor(amount * 1e9);
+                const comment = `stake:${days}`;
+                
+                // Формируем транзакцию на Jetton-кошелек пользователя
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: jettonWallet,  // отправляем на Jetton-кошелек пользователя!
+                        amount: amountInNano.toString(),
+                        payload: comment
+                    }]
+                };
+                
+                await tonConnectUI.sendTransaction(transaction);
+                alert('Стейкинг отправлен!');
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+                console.error(e);
+            }
         });
 
-        document.getElementById('stake-instruction').addEventListener('click', () => {
-            const days = document.getElementById('lock-days').value;
-            alert(`1. Откройте Tonkeeper\n2. Выберите CER\n3. Отправьте на адрес:\n${STAKING_ADDRESS}\n4. В комментарии укажите: ${days}\n5. Введите сумму и подтвердите`);
-        });
-
-        document.getElementById('unstake-btn').addEventListener('click', () => {
-            alert(`1. Откройте Tonkeeper\n2. Отправьте 0 CER на адрес:\n${STAKING_ADDRESS}\n3. В комментарии укажите: unstake\n4. Подтвердите`);
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
+            try {
+                await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: "0",
+                        payload: "unstake"
+                    }]
+                });
+                alert('Запрос на вывод отправлен!');
+            } catch(e) { alert('Ошибка: ' + e.message); }
         });
 
         checkPoolStatus();
