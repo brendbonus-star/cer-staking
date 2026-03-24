@@ -117,8 +117,7 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const GETBLOCK_ENDPOINT = "https://go.getblock.io/587a061356a647d89d62e635a17cd169";
+        const API_KEY = "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -166,27 +165,13 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                // Запрос к контракту через GetBlock
-                const payload = {
-                    jsonrpc: "2.0",
-                    id: 1,
-                    method: "getRunMethod",
-                    params: {
-                        address: STAKING_ADDRESS,
-                        method: "getRewardPool",
-                        stack: []
-                    }
-                };
-                
-                const response = await fetch(GETBLOCK_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                const url = `https://toncenter.com/api/v2/runGetMethod?address=${STAKING_ADDRESS}&method=getRewardPool&stack=&api_key=${API_KEY}`;
+                const response = await fetch(url);
                 const data = await response.json();
                 
-                if (data.result && data.result.stack && data.result.stack[0]) {
-                    rewardPool = parseInt(data.result.stack[0][1], 16);
+                if (data.ok && data.result && data.result.stack && data.result.stack[0]) {
+                    const rawValue = data.result.stack[0][1];
+                    rewardPool = parseInt(rawValue, 16);
                     if (rewardPool > 0) {
                         statusSpan.innerHTML = '✅ Активен';
                         statusSpan.className = 'status-active';
