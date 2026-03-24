@@ -118,7 +118,7 @@
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const BOT_USERNAME = "CERStakingBot";
+        const API_URL = "https://bot_1774369555_7516_legkiy.bothost.tech";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -173,23 +173,11 @@
             }
         }
 
-        async function getRewardPoolFromBot() {
+        async function getRewardPoolFromAPI() {
             try {
-                // Получаем последние сообщения бота (публичный метод)
-                const response = await fetch(`https://api.telegram.org/bot${BOT_USERNAME}/getUpdates`);
+                const response = await fetch(`${API_URL}/reward_pool`);
                 const data = await response.json();
-                if (data.ok && data.result) {
-                    for (let i = data.result.length - 1; i >= 0; i--) {
-                        const msg = data.result[i];
-                        if (msg.message && msg.message.text && msg.message.text.startsWith('{"rewardPool":')) {
-                            try {
-                                const json = JSON.parse(msg.message.text);
-                                return json.rewardPool || 0;
-                            } catch(e) {}
-                        }
-                    }
-                }
-                return 0;
+                return data.rewardPool || 0;
             } catch (e) {
                 console.error('Error getting reward pool:', e);
                 return 0;
@@ -199,7 +187,7 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                rewardPool = await getRewardPoolFromBot();
+                rewardPool = await getRewardPoolFromAPI();
                 if (rewardPool > 0) {
                     statusSpan.innerHTML = '✅ Активен';
                     statusSpan.className = 'status-active';
