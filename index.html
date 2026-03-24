@@ -69,7 +69,7 @@
         .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://unpkg.com/ton@13.0.0/dist/index.js"></script>
+    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -251,7 +251,6 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        // Кнопка стейкинга с правильным формированием Cell через Ton
         document.getElementById('stake-btn').addEventListener('click', async () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
@@ -266,37 +265,38 @@
                 const jettonWalletAddress = await getJettonWallet(walletAddress);
                 if (!jettonWalletAddress) throw new Error('Jetton-кошелек не найден');
                 
-                // 2. Переводим сумму в нано-единицы
+                // 2. Переводим сумму в нано-единицы (1 CER = 10^9)
                 const amountInNano = BigInt(Math.floor(amount * 1e9));
                 const forwardTonAmount = 100000000n; // 0.1 TON для газа
                 
-                // 3. Создаем forwardPayload для комментария
+                // 3. Создаем forwardPayload для комментария (срок стейкинга)
                 const forwardPayload = new TON_CORE.Cell();
                 forwardPayload.bits.writeUint(0, 32);          // опкод для комментария
                 forwardPayload.bits.writeString(`${days}`);    // записываем срок
                 
-                // 4. Создаем тело Jetton Transfer (opcode 0xf8a7ea5)
+                // 4. Создаем тело Jetton Transfer (opcode 0xf8a7ea5) 
                 const body = new TON_CORE.Cell();
                 body.bits.writeUint(0xf8a7ea5, 32);                 // opcode для jetton_transfer
                 body.bits.writeUint(0, 64);                         // query_id
                 body.bits.writeCoins(amountInNano);                 // сумма токена
-                body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS)); // получатель
-                body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));   // адрес для возврата
-                body.bits.writeBit(0);                              // custom_payload
-                body.bits.writeCoins(forwardTonAmount);             // forward_ton_amount
+                body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS)); // получатель (контракт стейкинга)
+                body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));   // адрес для возврата (response_destination)
+                body.bits.writeBit(0);                              // custom_payload (отсутствует)
+                body.bits.writeCoins(forwardTonAmount);             // forward_ton_amount (0.1 TON для газа)
                 body.bits.writeBit(1);                              // forward_payload присутствует
-                body.bits.writeRef(forwardPayload);                 // прикрепляем комментарий
+                body.bits.writeRef(forwardPayload);                 // прикрепляем комментарий как ссылку
                 
                 // 5. Формируем транзакцию
                 const transaction = {
                     validUntil: Math.floor(Date.now() / 1000) + 600,
                     messages: [{
-                        address: jettonWalletAddress,
-                        amount: "100000000",                         // 0.1 TON для газа
+                        address: jettonWalletAddress,               // отправляем на Jetton-кошелек пользователя
+                        amount: "100000000",                         // 0.1 TON для газа (будет возвращен излишек)
                         payload: body.toBoc().toString("base64")
                     }]
                 };
                 
+                // 6. Отправляем через TonConnect
                 await tonConnectUI.sendTransaction(transaction);
                 alert('Стейкинг отправлен!');
             } catch(e) {
