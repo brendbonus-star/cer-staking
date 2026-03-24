@@ -226,7 +226,6 @@
         document.getElementById('amount').addEventListener('input', updateUI);
 
         document.getElementById('stake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
             const maxAllowed = calculateMaxAmount(days);
@@ -234,36 +233,15 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            try {
-                const comment = `stake:${days}`;
-                
-                await tonConnectUI.sendTransaction({
-                    validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: STAKING_ADDRESS,
-                        amount: amount.toString(),
-                        comment: comment
-                    }]
-                });
-                alert('Стейкинг отправлен!');
-            } catch(e) {
-                alert('Ошибка: ' + e.message);
-            }
+            const comment = `stake:${days}`;
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=${amount}&text=${encodeURIComponent(comment)}`;
+            
+            window.open(url, '_blank');
         });
 
-        document.getElementById('unstake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            try {
-                await tonConnectUI.sendTransaction({
-                    validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: STAKING_ADDRESS,
-                        amount: "0",
-                        comment: "unstake"
-                    }]
-                });
-                alert('Запрос на вывод отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
+        document.getElementById('unstake-btn').addEventListener('click', () => {
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
+            window.open(url, '_blank');
         });
 
         checkPoolStatus();
