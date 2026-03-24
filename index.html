@@ -162,7 +162,6 @@
             const warningDiv = document.getElementById('warning');
             const stakeBtn = document.getElementById('stake-btn');
             
-            // Ограничение по балансу пользователя
             const maxByBalance = Math.min(userBalance, maxAllowed);
             
             if (rewardPool > 0 && maxAllowed > 0 && userBalance > 0) {
@@ -244,9 +243,11 @@
                     jettonWallet = data.balances[0].wallet_address.address;
                     return balance / 1e9;
                 }
+                jettonWallet = null;
                 return 0;
             } catch (e) {
                 console.error('Error getting user balance:', e);
+                jettonWallet = null;
                 return 0;
             }
         }
@@ -289,7 +290,6 @@
             if (amount > maxByBalance) { alert('Сумма превышает ваш баланс или лимит пула'); return; }
             
             try {
-                // Проверяем, что jettonWallet получен
                 if (!jettonWallet) {
                     await getUserBalance(walletAddress);
                 }
@@ -300,17 +300,15 @@
                 const amountInNano = Math.floor(amount * 1e9);
                 const comment = `stake:${days}`;
                 
-                // Формируем транзакцию на Jetton-кошелек пользователя
-                const transaction = {
+                // Отправляем на Jetton-кошелек пользователя
+                await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
                     messages: [{
-                        address: jettonWallet,  // отправляем на Jetton-кошелек пользователя!
+                        address: jettonWallet,
                         amount: amountInNano.toString(),
                         payload: comment
                     }]
-                };
-                
-                await tonConnectUI.sendTransaction(transaction);
+                });
                 alert('Стейкинг отправлен!');
             } catch(e) {
                 alert('Ошибка: ' + e.message);
