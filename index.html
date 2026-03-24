@@ -119,6 +119,7 @@
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         const BOT_TOKEN = "8092131927:AAGiC6iL7-xeEuNr3vDAGx-UeGauATEt1K0";
+        const API_URL = "https://bot_1774369555_7516_legkiy.bothost.tech";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -247,10 +248,29 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            // Формируем ссылку для отправки CER через Tonkeeper
-            const amountNano = Math.floor(amount * 1e9);
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountNano}&text=${days}`;
-            window.open(url, '_blank');
+            try {
+                const response = await fetch(`${API_URL}/stake`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: walletAddress,
+                        amount: amount,
+                        days: days
+                    })
+                });
+                const data = await response.json();
+                
+                if (!data.jettonWallet) {
+                    throw new Error('Не удалось получить Jetton-кошелек');
+                }
+                
+                const amountNano = Math.floor(amount * 1e9);
+                const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountNano}&text=${days}`;
+                window.open(url, '_blank');
+                
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+            }
         });
 
         document.getElementById('unstake-btn').addEventListener('click', () => {
