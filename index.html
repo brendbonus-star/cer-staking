@@ -117,8 +117,6 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        // Адрес твоего бота на Bothost
-        const BACKEND_URL = "https://cer-staking-bot.bothost.ru/reward_pool";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -163,12 +161,31 @@
             }
         }
 
+        async function getRewardPoolFromAPI() {
+            try {
+                const url = `https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data && data.balances) {
+                    for (const jetton of data.balances) {
+                        if (jetton.jetton && jetton.jetton.symbol === "CER") {
+                            const balance = parseInt(jetton.balance);
+                            return balance / 10**9; // 9 знаков после запятой
+                        }
+                    }
+                }
+                return 0;
+            } catch (e) {
+                console.error('Error getting reward pool:', e);
+                return 0;
+            }
+        }
+
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                const response = await fetch(BACKEND_URL);
-                const data = await response.json();
-                rewardPool = data.rewardPool || 0;
+                rewardPool = await getRewardPoolFromAPI();
                 if (rewardPool > 0) {
                     statusSpan.innerHTML = '✅ Активен';
                     statusSpan.className = 'status-active';
