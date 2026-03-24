@@ -117,7 +117,6 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -264,15 +263,13 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            const amountInNano = Math.floor(amount * 1e9);
-            const url = `ton://transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountInNano}&text=${days}`;
-            
-            window.location.href = url;
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?text=${days}`;
+            window.open(url, '_blank');
         });
 
         document.getElementById('unstake-btn').addEventListener('click', () => {
-            const url = `ton://transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.location.href = url;
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
+            window.open(url, '_blank');
         });
 
         checkPoolStatus();
