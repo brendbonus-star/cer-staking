@@ -1,13 +1,9 @@
 import telebot
 import json
 import requests
-import os
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = "8092131927:AAGiC6iL7-xeEuNr3vDAGx-UeGauATEt1K0"
 STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN not set")
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -16,12 +12,11 @@ def get_reward_pool():
         url = f"https://tonapi.io/v2/accounts/{STAKING_ADDRESS}/jettons"
         response = requests.get(url, timeout=10)
         data = response.json()
-        
-        if data and "balances" in data:
+        if data and data.get("balances"):
             for jetton in data["balances"]:
                 if jetton.get("jetton", {}).get("symbol") == "CER":
                     balance = int(jetton.get("balance", 0))
-                    return balance // 10**9
+                    return balance / 1e9
         return 0
     except Exception as e:
         print(f"Error: {e}")
@@ -32,10 +27,5 @@ def reward_pool(message):
     pool = get_reward_pool()
     bot.reply_to(message, json.dumps({"rewardPool": pool}))
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "💰 CER Staking Bot готов")
-
 if __name__ == '__main__':
-    print("Бот запущен")
     bot.infinity_polling()
