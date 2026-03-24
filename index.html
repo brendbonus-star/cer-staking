@@ -118,7 +118,6 @@
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const API_URL = "https://bot_1774371326_5014_legkiy.bothost.tech";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -173,11 +172,20 @@
             }
         }
 
-        async function getRewardPoolFromAPI() {
+        async function getRewardPoolDirect() {
             try {
-                const response = await fetch(`${API_URL}/reward_pool`);
+                const url = `https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`;
+                const response = await fetch(url);
                 const data = await response.json();
-                return data.rewardPool || 0;
+                if (data && data.balances) {
+                    for (const jetton of data.balances) {
+                        if (jetton.jetton && jetton.jetton.symbol === "CER") {
+                            const balance = parseInt(jetton.balance);
+                            return balance / 1e9;
+                        }
+                    }
+                }
+                return 0;
             } catch (e) {
                 console.error('Error getting reward pool:', e);
                 return 0;
@@ -187,7 +195,7 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                rewardPool = await getRewardPoolFromAPI();
+                rewardPool = await getRewardPoolDirect();
                 if (rewardPool > 0) {
                     statusSpan.innerHTML = '✅ Активен';
                     statusSpan.className = 'status-active';
@@ -237,21 +245,16 @@
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
             try {
-                const response = await fetch(`${API_URL}/stake`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user: walletAddress,
-                        amount: amount,
-                        days: days
-                    })
-                });
-                const data = await response.json();
+                // Получаем адрес Jetton-кошелька пользователя
+                const jettonUrl = `https://tonapi.io/v2/accounts/${walletAddress}/jettons?jetton_master=${JETTON_MASTER}`;
+                const jettonResponse = await fetch(jettonUrl);
+                const jettonData = await jettonResponse.json();
                 
-                if (!data.jettonWallet) {
-                    throw new Error('Не удалось получить Jetton-кошелек');
+                if (!jettonData.balances || jettonData.balances.length === 0) {
+                    throw new Error('Jetton-кошелек не найден');
                 }
                 
+                const jettonWallet = jettonData.balances[0].wallet_address.address;
                 const amountNano = Math.floor(amount * 1e9);
                 const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountNano}&text=${days}`;
                 window.open(url, '_blank');
