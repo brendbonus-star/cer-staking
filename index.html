@@ -264,10 +264,8 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            // Переводим CER в нано-единицы (9 знаков после запятой)
             const amountInNano = Math.floor(amount * 1e9);
-            const comment = `${days}`;
-            const url = `https://app.tonkeeper.com/jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountInNano}&comment=${encodeURIComponent(comment)}`;
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountInNano}&text=${days}`;
             
             window.open(url, '_blank');
         });
