@@ -121,6 +121,9 @@
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
+        let myStake = 0;
+        let myReward = 0;
+        let unlockTime = 0;
 
         function calculateMaxAmount(days) {
             if (rewardPool <= 0) return 0;
@@ -159,6 +162,15 @@
                 stakeBtn.disabled = true;
                 document.getElementById('profit-display').textContent = '0';
             }
+            
+            document.getElementById('my-stake').textContent = `${myStake} CER`;
+            document.getElementById('my-reward').textContent = `${myReward} CER`;
+            if (unlockTime > 0) {
+                const date = new Date(unlockTime * 1000);
+                document.getElementById('unlock-date').textContent = date.toLocaleDateString();
+            } else {
+                document.getElementById('unlock-date').textContent = '—';
+            }
         }
 
         async function getRewardPoolFromAPI() {
@@ -179,6 +191,20 @@
             } catch (e) {
                 console.error('Error getting reward pool:', e);
                 return 0;
+            }
+        }
+
+        async function getMyStakeFromAPI() {
+            if (!walletAddress) return;
+            try {
+                // Пока нет API для получения стейка, возвращаем тестовые данные
+                // TODO: заменить на реальный запрос к контракту
+                myStake = 100; // тестовое значение
+                myReward = 0;
+                unlockTime = Date.now() / 1000 + 30 * 24 * 3600; // через 30 дней
+                updateUI();
+            } catch (e) {
+                console.error('Error getting stake:', e);
             }
         }
 
@@ -214,10 +240,15 @@
                     walletAddress = wallet.account.address;
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
+                    await getMyStakeFromAPI();
                 } else {
                     walletAddress = null;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
+                    myStake = 0;
+                    myReward = 0;
+                    unlockTime = 0;
+                    updateUI();
                 }
             });
         }
@@ -225,7 +256,7 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        document.getElementById('stake-btn').addEventListener('click', async () => {
+        document.getElementById('stake-btn').addEventListener('click', () => {
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
             const maxAllowed = calculateMaxAmount(days);
