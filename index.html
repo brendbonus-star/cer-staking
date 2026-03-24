@@ -242,9 +242,7 @@
                     messages: [{
                         address: STAKING_ADDRESS,
                         amount: amount.toString(),
-                        payload: {
-                            text: comment
-                        }
+                        comment: comment
                     }]
                 });
                 alert('Стейкинг отправлен!');
@@ -261,9 +259,7 @@
                     messages: [{
                         address: STAKING_ADDRESS,
                         amount: "0",
-                        payload: {
-                            text: "unstake"
-                        }
+                        comment: "unstake"
                     }]
                 });
                 alert('Запрос на вывод отправлен!');
