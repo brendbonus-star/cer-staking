@@ -265,14 +265,14 @@
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
             const amountInNano = Math.floor(amount * 1e9);
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountInNano}&text=${days}`;
+            const url = `ton://transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountInNano}&text=${days}`;
             
-            window.open(url, '_blank');
+            window.location.href = url;
         });
 
         document.getElementById('unstake-btn').addEventListener('click', () => {
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.open(url, '_blank');
+            const url = `ton://transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
+            window.location.href = url;
         });
 
         checkPoolStatus();
