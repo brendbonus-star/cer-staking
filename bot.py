@@ -1,8 +1,12 @@
 import telebot
 import json
 import requests
+import os
+from dotenv import load_dotenv
 
-TOKEN = "8092131927:AAGiC6iL7-xeEuNr3vDAGx-UeGauATEt1K0"
+load_dotenv()
+
+TOKEN = os.getenv("BOT_TOKEN")
 STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
 
 bot = telebot.TeleBot(TOKEN)
