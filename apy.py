@@ -2,10 +2,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import base64
-from ton import Cell, Address, begin_cell
+from pytoniq import Cell, Address, begin_cell
 
 app = Flask(__name__)
-CORS(app)  # разрешаем запросы с любых доменов
+CORS(app)
 
 STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
 JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G"
