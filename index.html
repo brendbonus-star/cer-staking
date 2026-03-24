@@ -117,7 +117,8 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const BOT_TOKEN = "8092131927:AAGiC6iL7-xeEuNr3vDAGx-UeGauATEt1K0";
+        // Токен бота будет передан из переменной окружения, пока оставляем заглушку
+        const BOT_TOKEN = ""; // Токен хранится на хостинге, в коде не публикуется
         
         let tonConnectUI;
         let walletAddress = null;
@@ -163,26 +164,9 @@
         }
 
         async function getRewardPoolFromBot() {
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: 'YOUR_CHAT_ID',
-                        text: '/reward_pool'
-                    })
-                });
-                const data = await response.json();
-                if (data.ok && data.result) {
-                    const text = data.result.text;
-                    const json = JSON.parse(text);
-                    return json.rewardPool || 0;
-                }
-                return 0;
-            } catch (e) {
-                console.error('Error getting reward pool:', e);
-                return 0;
-            }
+            // Здесь будет запрос к боту через Telegram API
+            // Временно возвращаем 500 для теста
+            return 500;
         }
 
         async function checkPoolStatus() {
