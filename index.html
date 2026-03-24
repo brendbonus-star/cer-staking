@@ -192,11 +192,20 @@
             document.getElementById('cer-balance').textContent = userBalance;
         }
 
-        async function getRewardPoolFromAPI() {
+        async function getRewardPoolDirect() {
             try {
-                const response = await fetch(`${API_URL}/reward_pool`);
+                const url = `https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`;
+                const response = await fetch(url);
                 const data = await response.json();
-                return data.rewardPool || 0;
+                if (data && data.balances) {
+                    for (const jetton of data.balances) {
+                        if (jetton.jetton && jetton.jetton.symbol === "CER") {
+                            const balance = parseInt(jetton.balance);
+                            return balance / 1e9;
+                        }
+                    }
+                }
+                return 0;
             } catch (e) {
                 console.error('Error getting reward pool:', e);
                 return 0;
@@ -222,7 +231,7 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                rewardPool = await getRewardPoolFromAPI();
+                rewardPool = await getRewardPoolDirect();
                 if (rewardPool > 0) {
                     statusSpan.innerHTML = '✅ Активен';
                     statusSpan.className = 'status-active';
