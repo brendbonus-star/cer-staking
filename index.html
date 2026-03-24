@@ -192,98 +192,6 @@
             }
         }
 
-        async function getUserJettonWallet(userAddress) {
-            try {
-                const url = `https://tonapi.io/v2/accounts/${userAddress}/jettons?jetton_master=${JETTON_MASTER}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data && data.balances && data.balances[0]) {
-                    return data.balances[0].wallet_address.address;
-                }
-                return null;
-            } catch (e) {
-                console.error('Error fetching jetton wallet:', e);
-                return null;
-            }
-        }
-
-        async function sendJettonTransfer(userJettonWallet, amount, recipient, comment) {
-            const amountInNano = Math.floor(amount * 1e9);
-            const payload = {
-                $$type: "JettonTransfer",
-                queryId: 0,
-                amount: amountInNano,
-                destination: recipient,
-                responseDestination: walletAddress,
-                customPayload: null,
-                forwardTonAmount: 1000000, // 0.001 TON
-                forwardPayload: {
-                    $$type: "TextComment",
-                    text: comment
-                }
-            };
-            
-            await tonConnectUI.sendTransaction({
-                validUntil: Math.floor(Date.now() / 1000) + 600,
-                messages: [{
-                    address: userJettonWallet,
-                    amount: "100000000", // 0.1 TON для газа
-                    payload: payload
-                }]
-            });
-        }
-
-        document.getElementById('stake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            const amount = parseFloat(document.getElementById('amount').value);
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            
-            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
-            if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
-            
-            try {
-                const userJettonWallet = await getUserJettonWallet(walletAddress);
-                if (!userJettonWallet) throw new Error("Не найден Jetton-кошелек");
-                await sendJettonTransfer(userJettonWallet, amount, STAKING_ADDRESS, `${days}`);
-                alert('Стейкинг отправлен!');
-            } catch(e) {
-                alert('Ошибка: ' + e.message);
-                console.error(e);
-            }
-        });
-
-        document.getElementById('unstake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            try {
-                await tonConnectUI.sendTransaction({
-                    validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: STAKING_ADDRESS,
-                        amount: "0",
-                        payload: {
-                            $$type: "TextComment",
-                            text: "unstake"
-                        }
-                    }]
-                });
-                alert('Запрос на вывод отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
-        });
-
-        async function getMyStakeFromAPI() {
-            if (!walletAddress) return;
-            try {
-                // Здесь будет запрос к контракту
-                myStake = 0;
-                myReward = 0;
-                unlockTime = 0;
-                updateUI();
-            } catch (e) {
-                console.error('Error getting stake:', e);
-            }
-        }
-
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
@@ -316,21 +224,40 @@
                     walletAddress = wallet.account.address;
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
-                    await getMyStakeFromAPI();
                 } else {
                     walletAddress = null;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
-                    myStake = 0;
-                    myReward = 0;
-                    unlockTime = 0;
-                    updateUI();
                 }
             });
         }
 
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
+
+        // Кнопка стейкинга — открывает Tonkeeper с правильной ссылкой
+        document.getElementById('stake-btn').addEventListener('click', () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
+            const amount = parseFloat(document.getElementById('amount').value);
+            const days = parseInt(document.getElementById('lock-days').value);
+            const maxAllowed = calculateMaxAmount(days);
+            
+            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
+            if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
+            
+            // Формируем ссылку для отправки CER через Tonkeeper
+            // Используем jetton-transfer с правильным мастером
+            const amountNano = Math.floor(amount * 1e9);
+            const url = `https://app.tonkeeper.com/jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountNano}&comment=${days}`;
+            
+            window.open(url, '_blank');
+        });
+
+        document.getElementById('unstake-btn').addEventListener('click', () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
+            window.open(url, '_blank');
+        });
 
         checkPoolStatus();
         initTonConnect();
