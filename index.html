@@ -171,7 +171,7 @@
                     for (const jetton of data.balances) {
                         if (jetton.jetton && jetton.jetton.symbol === "CER") {
                             const balance = parseInt(jetton.balance);
-                            return balance / 10**9; // 9 знаков после запятой
+                            return balance / 10**9;
                         }
                     }
                 }
@@ -235,12 +235,21 @@
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
             try {
+                // Формируем комментарий как строку
+                const comment = `stake:${days}`;
+                
                 await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{ address: STAKING_ADDRESS, amount: amount.toString(), payload: `stake:${days}` }]
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: amount.toString(),
+                        payload: comment
+                    }]
                 });
                 alert('Стейкинг отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+            }
         });
 
         document.getElementById('unstake-btn').addEventListener('click', async () => {
@@ -248,7 +257,11 @@
             try {
                 await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{ address: STAKING_ADDRESS, amount: "0", payload: "unstake" }]
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: "0",
+                        payload: "unstake"
+                    }]
                 });
                 alert('Запрос на вывод отправлен!');
             } catch(e) { alert('Ошибка: ' + e.message); }
