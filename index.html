@@ -69,6 +69,7 @@
         .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@ton/core@latest/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -252,10 +253,18 @@
             });
         }
 
+        function createPayloadCell(comment) {
+            // Создаём Cell с текстовым комментарием
+            const cell = new TON_CORE.Cell();
+            cell.bits.writeString(comment);
+            return cell.toBoc().toString('base64');
+        }
+
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        document.getElementById('stake-btn').addEventListener('click', () => {
+        document.getElementById('stake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
             const maxAllowed = calculateMaxAmount(days);
@@ -263,13 +272,38 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?text=${days}`;
-            window.open(url, '_blank');
+            try {
+                const comment = `${days}`;
+                const payload = createPayloadCell(comment);
+                
+                await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: amount.toString(),
+                        payload: payload
+                    }]
+                });
+                alert('Стейкинг отправлен!');
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+            }
         });
 
-        document.getElementById('unstake-btn').addEventListener('click', () => {
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.open(url, '_blank');
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
+            try {
+                const payload = createPayloadCell("unstake");
+                await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: "0",
+                        payload: payload
+                    }]
+                });
+                alert('Запрос на вывод отправлен!');
+            } catch(e) { alert('Ошибка: ' + e.message); }
         });
 
         checkPoolStatus();
