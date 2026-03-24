@@ -69,7 +69,6 @@
         .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -119,6 +118,7 @@
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        const API_URL = "https://bot_1774369555_7516_legkiy.bothost.tech";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -214,21 +214,6 @@
             }
         }
 
-        async function getJettonWallet(userAddress) {
-            try {
-                const url = `https://tonapi.io/v2/accounts/${userAddress}/jettons?jetton_master=${JETTON_MASTER}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data && data.balances && data.balances.length > 0) {
-                    return data.balances[0].wallet_address.address;
-                }
-                return null;
-            } catch (e) {
-                console.error('Error getting jetton wallet:', e);
-                return null;
-            }
-        }
-
         async function initTonConnect() {
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
@@ -251,6 +236,7 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
+        // ========== НОВАЯ КНОПКА ==========
         document.getElementById('stake-btn').addEventListener('click', async () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
@@ -261,43 +247,27 @@
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
             try {
-                // 1. Получаем адрес Jetton-кошелька пользователя
-                const jettonWalletAddress = await getJettonWallet(walletAddress);
-                if (!jettonWalletAddress) throw new Error('Jetton-кошелек не найден');
+                // 1. Запрашиваем у сервера готовую транзакцию
+                const response = await fetch(`${API_URL}/stake`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: walletAddress,
+                        amount: amount,
+                        days: days
+                    })
+                });
+                const data = await response.json();
                 
-                // 2. Переводим сумму в нано-единицы (1 CER = 10^9)
-                const amountInNano = BigInt(Math.floor(amount * 1e9));
-                const forwardTonAmount = 100000000n; // 0.1 TON для газа
+                if (!data.unsignedTransaction) {
+                    throw new Error('Не удалось получить транзакцию');
+                }
                 
-                // 3. Создаем forwardPayload для комментария (срок стейкинга)
-                const forwardPayload = new TON_CORE.Cell();
-                forwardPayload.bits.writeUint(0, 32);          // опкод для комментария
-                forwardPayload.bits.writeString(`${days}`);    // записываем срок
-                
-                // 4. Создаем тело Jetton Transfer (opcode 0xf8a7ea5) 
-                const body = new TON_CORE.Cell();
-                body.bits.writeUint(0xf8a7ea5, 32);                 // opcode для jetton_transfer
-                body.bits.writeUint(0, 64);                         // query_id
-                body.bits.writeCoins(amountInNano);                 // сумма токена
-                body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS)); // получатель (контракт стейкинга)
-                body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));   // адрес для возврата (response_destination)
-                body.bits.writeBit(0);                              // custom_payload (отсутствует)
-                body.bits.writeCoins(forwardTonAmount);             // forward_ton_amount (0.1 TON для газа)
-                body.bits.writeBit(1);                              // forward_payload присутствует
-                body.bits.writeRef(forwardPayload);                 // прикрепляем комментарий как ссылку
-                
-                // 5. Формируем транзакцию
-                const transaction = {
+                // 2. Отправляем готовую транзакцию в TonConnect
+                await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: jettonWalletAddress,               // отправляем на Jetton-кошелек пользователя
-                        amount: "100000000",                         // 0.1 TON для газа (будет возвращен излишек)
-                        payload: body.toBoc().toString("base64")
-                    }]
-                };
-                
-                // 6. Отправляем через TonConnect
-                await tonConnectUI.sendTransaction(transaction);
+                    messages: [data.unsignedTransaction]
+                });
                 alert('Стейкинг отправлен!');
             } catch(e) {
                 alert('Ошибка: ' + e.message);
@@ -308,17 +278,14 @@
         document.getElementById('unstake-btn').addEventListener('click', async () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             try {
-                const commentCell = new TON_CORE.Cell();
-                commentCell.bits.writeString("unstake");
-                const transaction = {
+                await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 600,
                     messages: [{
                         address: STAKING_ADDRESS,
                         amount: "0",
-                        payload: commentCell.toBoc().toString("base64")
+                        payload: "unstake"
                     }]
-                };
-                await tonConnectUI.sendTransaction(transaction);
+                });
                 alert('Запрос на вывод отправлен!');
             } catch(e) { alert('Ошибка: ' + e.message); }
         });
