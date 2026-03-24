@@ -117,7 +117,7 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const API_KEY = "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb";
+        const BACKEND_URL = "https://tangy-books-relate.loca.lt";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -165,22 +165,13 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                const url = `https://toncenter.com/api/v2/runGetMethod?address=${STAKING_ADDRESS}&method=getRewardPool&stack=&api_key=${API_KEY}`;
-                const response = await fetch(url);
+                const response = await fetch(`${BACKEND_URL}/reward_pool`);
                 const data = await response.json();
-                
-                if (data.ok && data.result && data.result.stack && data.result.stack[0]) {
-                    const rawValue = data.result.stack[0][1];
-                    rewardPool = parseInt(rawValue, 16);
-                    if (rewardPool > 0) {
-                        statusSpan.innerHTML = '✅ Активен';
-                        statusSpan.className = 'status-active';
-                    } else {
-                        statusSpan.innerHTML = '❌ Неактивен';
-                        statusSpan.className = 'status-inactive';
-                    }
+                rewardPool = data.rewardPool;
+                if (rewardPool > 0) {
+                    statusSpan.innerHTML = '✅ Активен';
+                    statusSpan.className = 'status-active';
                 } else {
-                    rewardPool = 0;
                     statusSpan.innerHTML = '❌ Неактивен';
                     statusSpan.className = 'status-inactive';
                 }
