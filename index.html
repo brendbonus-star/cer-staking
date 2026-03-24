@@ -69,7 +69,7 @@
         .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://unpkg.com/@ton/ton@latest/dist/index.js"></script>
+    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -232,21 +232,15 @@
         async function sendJettonTransfer(jettonWallet, amount, days) {
             const amountInNano = Math.floor(amount * 1e9);
             
-            // Создаём тело сообщения для Jetton Transfer
             const body = new TON_CORE.Cell();
-            body.bits.writeUint(0xf8a7ea5, 32);  // opcode для jetton_transfer
+            body.bits.writeUint(0xf8a7ea5, 32);  // opcode jetton_transfer
             body.bits.writeUint(0, 64);          // query_id
-            body.bits.writeCoins(amountInNano);  // сумма токена
-            body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS)); // получатель
-            body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));   // адрес для возврата
+            body.bits.writeCoins(amountInNano);
+            body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS));
+            body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));
             body.bits.writeBit(0);               // custom_payload
             body.bits.writeCoins(0);             // forward_ton_amount
-            
-            // Добавляем комментарий (количество дней)
-            const commentCell = new TON_CORE.Cell();
-            commentCell.bits.writeString(`${days}`);
-            body.bits.writeBit(1);               // forward_payload присутствует
-            body.bits.writeRef(commentCell);
+            body.bits.writeBit(0);               // forward_payload (без комментария)
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -275,10 +269,6 @@
                     walletAddress = null;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
-                    myStake = 0;
-                    myReward = 0;
-                    unlockTime = 0;
-                    updateUI();
                 }
             });
         }
