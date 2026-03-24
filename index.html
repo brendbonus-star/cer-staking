@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>CER Staking</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
@@ -18,12 +13,7 @@
             padding: 20px;
             min-height: 100vh;
         }
-
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
+        .container { max-width: 500px; margin: 0 auto; }
         .card {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
@@ -32,7 +22,6 @@
             margin-bottom: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-
         h1 {
             font-size: 32px;
             font-weight: 700;
@@ -42,46 +31,11 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
-        .subtitle {
-            text-align: center;
-            opacity: 0.6;
-            font-size: 14px;
-            margin-bottom: 24px;
-        }
-
-        .pool-status {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .status-active {
-            color: #00ff88;
-            font-weight: 600;
-            display: inline-block;
-            background: rgba(0, 255, 136, 0.1);
-            padding: 8px 20px;
-            border-radius: 40px;
-        }
-
-        .status-inactive {
-            color: #ff4444;
-            font-weight: 600;
-            display: inline-block;
-            background: rgba(255, 68, 68, 0.1);
-            padding: 8px 20px;
-            border-radius: 40px;
-        }
-
-        .status-loading {
-            color: #ffaa44;
-            font-weight: 600;
-            display: inline-block;
-            background: rgba(255, 170, 68, 0.1);
-            padding: 8px 20px;
-            border-radius: 40px;
-        }
-
+        .subtitle { text-align: center; opacity: 0.6; font-size: 14px; margin-bottom: 24px; }
+        .pool-status { text-align: center; margin-bottom: 20px; }
+        .status-active { color: #00ff88; font-weight: 600; display: inline-block; background: rgba(0, 255, 136, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-inactive { color: #ff4444; font-weight: 600; display: inline-block; background: rgba(255, 68, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-loading { color: #ffaa44; font-weight: 600; display: inline-block; background: rgba(255, 170, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
         button {
             width: 100%;
             padding: 16px;
@@ -92,17 +46,8 @@
             font-weight: 600;
             cursor: pointer;
         }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0088cc, #0066aa);
-            color: white;
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
+        .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         input, select {
             width: 100%;
             padding: 16px;
@@ -113,68 +58,18 @@
             color: white;
             font-size: 16px;
         }
-
-        .wallet-info {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 20px;
-            padding: 12px;
-            margin-top: 10px;
-            font-size: 12px;
-            word-break: break-all;
-        }
-
-        .stake-info {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 20px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-
-        .stake-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .label {
-            opacity: 0.6;
-        }
-
-        .value {
-            font-weight: 600;
-        }
-
-        .profit {
-            background: rgba(0, 255, 136, 0.1);
-            padding: 12px;
-            border-radius: 16px;
-            text-align: center;
-            margin: 10px 0;
-        }
-
-        .profit-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #00ff88;
-        }
-
-        .max-hint {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.5);
-            text-align: right;
-            margin-top: -5px;
-            margin-bottom: 10px;
-        }
-
-        .warning {
-            color: #ffaa44;
-            font-size: 12px;
-            text-align: center;
-            margin-top: 5px;
-        }
+        .wallet-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 12px; margin-top: 10px; font-size: 12px; word-break: break-all; }
+        .stake-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
+        .stake-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .label { opacity: 0.6; }
+        .value { font-weight: 600; }
+        .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
+        .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
+        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
+        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@ton/ton@latest/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -222,11 +117,11 @@
     </div>
 
     <script>
-        // Адрес контракта для стейкинга
+        // Адреса и конфигурация
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        // Адрес мастер-контракта токена CER (Jetton Master)
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        const JETTON_MASTER_ADDRESS = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
+        // Глобальные переменные
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
@@ -321,6 +216,106 @@
             }
         }
 
+        // Функция для получения адреса Jetton-кошелька пользователя
+        async function getJettonWalletAddress(userAddress) {
+            const client = new TON_CORE.TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
+            const jettonMaster = client.open(TON_CORE.JettonMaster.create(JETTON_MASTER_ADDRESS));
+            const jettonWalletAddress = await jettonMaster.getWalletAddress(TON_CORE.Address.parse(userAddress));
+            return jettonWalletAddress.toString();
+        }
+
+        // === ГЛАВНАЯ ФУНКЦИЯ СТЕЙКИНГА, ИСПОЛЬЗУЮЩАЯ TonConnect SDK ===
+        document.getElementById('stake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { 
+                alert('Сначала подключите кошелек'); 
+                return; 
+            }
+            
+            const amountCER = parseFloat(document.getElementById('amount').value);
+            const days = parseInt(document.getElementById('lock-days').value);
+            const maxAllowed = calculateMaxAmount(days);
+            
+            if (!amountCER || amountCER <= 0) { 
+                alert('Введите сумму'); 
+                return; 
+            }
+            if (amountCER > maxAllowed) { 
+                alert(`Сумма превышает доступный лимит пула (максимум ${maxAllowed} CER)`); 
+                return; 
+            }
+
+            try {
+                // 1. Получаем адрес Jetton-кошелька пользователя (куда нужно отправить сообщение)
+                const jettonWalletAddress = await getJettonWalletAddress(walletAddress);
+                
+                // 2. Переводим сумму CER в нано-единицы (1 CER = 1_000_000_000)
+                const amountInNano = Math.floor(amountCER * 1_000_000_000);
+                
+                // 3. Создаем тело сообщения для Jetton Transfer
+                //    Это стандартный формат для перевода Jettons в сети TON [citation:2][citation:6]
+                const body = new TON_CORE.Cell();
+                body.bits.writeUint(0xf8a7ea5, 32);  // opcode для jetton_transfer
+                body.bits.writeUint(0, 64);          // query_id
+                body.bits.writeCoins(amountInNano);  // сумма токена для перевода
+                body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS)); // адрес получателя (контракт стейкинга)
+                body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));   // адрес для возврата средств (response_destination)
+                body.bits.writeBit(0);               // custom_payload (отсутствует)
+                body.bits.writeCoins(0);             // forward_ton_amount (0)
+                body.bits.writeBit(0);               // forward_payload (отсутствует)
+
+                // 4. Создаем отдельную ячейку для комментария с количеством дней
+                const commentCell = new TON_CORE.Cell();
+                commentCell.bits.writeString(`${days}`);
+                // Прикрепляем комментарий к основному телу
+                body.bits.writeBit(1);
+                body.bits.writeRef(commentCell);
+                
+                // 5. Формируем транзакцию
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: jettonWalletAddress,  // отправляем сообщение на Jetton-кошелек пользователя
+                        amount: "100000000",           // 0.1 TON для газа
+                        payload: body.toBoc().toString("base64")
+                    }]
+                };
+                
+                // 6. Отправляем транзакцию через TonConnect
+                await tonConnectUI.sendTransaction(transaction);
+                alert('Стейкинг отправлен!');
+            } catch (e) {
+                alert('Ошибка при отправке стейка: ' + e.message);
+                console.error(e);
+            }
+        });
+
+        // Функция для вывода средств (unstake)
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
+            if (!walletAddress) { 
+                alert('Сначала подключите кошелек'); 
+                return; 
+            }
+            
+            try {
+                // Создаем ячейку с комментарием "unstake"
+                const commentCell = new TON_CORE.Cell();
+                commentCell.bits.writeString("unstake");
+                
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: "0",
+                        payload: commentCell.toBoc().toString("base64")
+                    }]
+                };
+                await tonConnectUI.sendTransaction(transaction);
+                alert('Запрос на вывод отправлен!');
+            } catch(e) { 
+                alert('Ошибка: ' + e.message); 
+            }
+        });
+
         async function initTonConnect() {
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
@@ -336,58 +331,17 @@
                     walletAddress = null;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
+                    myStake = 0;
+                    myReward = 0;
+                    unlockTime = 0;
+                    updateUI();
                 }
             });
         }
 
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
-
-        // ИСПРАВЛЕННАЯ КНОПКА СТЕЙКИНГА — использует официальный формат ссылки Tonkeeper
-        document.getElementById('stake-btn').addEventListener('click', () => {
-            if (!walletAddress) { 
-                alert('Сначала подключите кошелек'); 
-                return; 
-            }
-            
-            const amountCER = parseFloat(document.getElementById('amount').value);
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            
-            if (!amountCER || amountCER <= 0) { 
-                alert('Введите сумму'); 
-                return; 
-            }
-            
-            if (amountCER > maxAllowed) { 
-                alert(`Сумма превышает доступный лимит пула (максимум ${maxAllowed} CER)`); 
-                return; 
-            }
-            
-            // Ключевое исправление: переводим CER в наименьшие единицы (decimals=9)
-            // 1 CER = 1_000_000_000
-            const amountNano = Math.floor(amountCER * 1_000_000_000);
-            
-            // Формируем правильную ссылку согласно документации TON [citation:4]
-            // https://docs.ton.org/ecosystem/wallet-apps/deep-links#jetton-transfer
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?jetton=${JETTON_MASTER}&amount=${amountNano}&text=${days}`;
-            
-            console.log("Opening Tonkeeper with URL:", url);
-            window.open(url, '_blank');
-        });
-
-        // Кнопка для вывода стейка
-        document.getElementById('unstake-btn').addEventListener('click', () => {
-            if (!walletAddress) { 
-                alert('Сначала подключите кошелек'); 
-                return; 
-            }
-            
-            // Для вывода достаточно комментария, сумму не отправляем
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.open(url, '_blank');
-        });
-
+        
         checkPoolStatus();
         initTonConnect();
         setInterval(checkPoolStatus, 30000);
