@@ -1,277 +1,56 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>CER Staking</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
-            color: #ffffff;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { max-width: 500px; margin: 0 auto; }
-        .card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            border-radius: 28px;
-            padding: 24px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        h1 {
-            font-size: 32px;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #ffffff, #a0a0ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .subtitle { text-align: center; opacity: 0.6; font-size: 14px; margin-bottom: 24px; }
-        .pool-status { text-align: center; margin-bottom: 20px; }
-        .status-active { color: #00ff88; font-weight: 600; display: inline-block; background: rgba(0, 255, 136, 0.1); padding: 8px 20px; border-radius: 40px; }
-        .status-inactive { color: #ff4444; font-weight: 600; display: inline-block; background: rgba(255, 68, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
-        .status-loading { color: #ffaa44; font-weight: 600; display: inline-block; background: rgba(255, 170, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
-        button {
-            width: 100%;
-            padding: 16px;
-            margin: 10px 0;
-            border-radius: 20px;
-            border: none;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        input, select {
-            width: 100%;
-            padding: 16px;
-            margin: 10px 0;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.4);
-            color: white;
-            font-size: 16px;
-        }
-        .wallet-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 12px; margin-top: 10px; font-size: 12px; word-break: break-all; }
-        .stake-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
-        .stake-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-        .label { opacity: 0.6; }
-        .value { font-weight: 600; }
-        .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
-        .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
-        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
-        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
-    </style>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <h1>💰 CER STAKING</h1>
-        <div class="subtitle">до 100% годовых</div>
+from flask import Flask, request, jsonify
+import requests
 
-        <div class="card">
-            <div class="pool-status">
-                <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
-            </div>
-        </div>
+app = Flask(__name__)
 
-        <div class="card">
-            <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
-            <button id="connect-btn">🔌 Подключить кошелек</button>
-            <div id="wallet-address" class="wallet-info"></div>
-        </div>
+STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
+JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G"
 
-        <div class="card">
-            <div class="stake-info">
-                <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
-                <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
-                <div class="stake-row"><span class="label">🔓 Разблокировка:</span><span id="unlock-date" class="value">—</span></div>
-            </div>
-        </div>
+def get_jetton_wallet(user_address):
+    url = f"https://tonapi.io/v2/accounts/{user_address}/jettons?jetton_master={JETTON_MASTER}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if data and data.get("balances") and len(data["balances"]) > 0:
+            return data["balances"][0]["wallet_address"]["address"]
+    except Exception as e:
+        print(f"Error: {e}")
+    return None
 
-        <div class="card">
-            <h3>💸 Новый стейк</h3>
-            <input type="number" id="amount" placeholder="Сумма CER" value="100">
-            <select id="lock-days">
-                <option value="30">30 дней — 8.22% годовых</option>
-                <option value="90">90 дней — 24.66% годовых</option>
-                <option value="180">180 дней — 49.32% годовых</option>
-                <option value="365">365 дней — 100% годовых</option>
-            </select>
-            <div id="max-hint" class="max-hint"></div>
-            <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
-            <div id="warning" class="warning"></div>
-            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
-        </div>
+@app.route('/stake', methods=['POST'])
+def stake():
+    data = request.json
+    user_address = data.get('user')
+    amount = float(data.get('amount'))
+    days = data.get('days')
+    
+    if not user_address or not amount or not days:
+        return jsonify({"error": "Missing parameters"}), 400
+    
+    jetton_wallet = get_jetton_wallet(user_address)
+    if not jetton_wallet:
+        return jsonify({"error": "Jetton wallet not found"}), 404
+    
+    return jsonify({
+        "jettonWallet": jetton_wallet,
+        "amount": amount,
+        "days": days
+    })
 
-        <div class="card">
-            <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
-        </div>
-    </div>
+@app.route('/reward_pool', methods=['GET'])
+def reward_pool():
+    try:
+        url = f"https://tonapi.io/v2/accounts/{STAKING_ADDRESS}/jettons"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if data and data.get("balances"):
+            for jetton in data["balances"]:
+                if jetton.get("jetton", {}).get("symbol") == "CER":
+                    balance = int(jetton.get("balance", 0))
+                    return jsonify({"rewardPool": balance / 1e9})
+        return jsonify({"rewardPool": 0})
+    except Exception as e:
+        return jsonify({"rewardPool": 0})
 
-    <script>
-        const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const API_URL = "https://ваш-хостинг.bothost.ru"; // Замени на URL твоего сервера с api.py
-        
-        let tonConnectUI;
-        let walletAddress = null;
-        let rewardPool = 0;
-        let myStake = 0;
-        let myReward = 0;
-        let unlockTime = 0;
-
-        function calculateMaxAmount(days) {
-            if (rewardPool <= 0) return 0;
-            return Math.floor(rewardPool * 365 / days);
-        }
-
-        function calculateProfit(amount, days) {
-            if (amount <= 0) return 0;
-            const maxAllowed = calculateMaxAmount(days);
-            if (amount > maxAllowed && maxAllowed > 0) return 0;
-            return ((amount * days / 365 * 100) / 100).toFixed(2);
-        }
-
-        function updateUI() {
-            const amount = parseFloat(document.getElementById('amount').value) || 0;
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            const warningDiv = document.getElementById('warning');
-            const stakeBtn = document.getElementById('stake-btn');
-            
-            if (rewardPool > 0 && maxAllowed > 0) {
-                document.getElementById('max-hint').innerHTML = `Максимум: ${maxAllowed} CER (пул: ${rewardPool} CER)`;
-                if (amount > maxAllowed) {
-                    warningDiv.innerHTML = '⚠️ Сумма превышает доступный лимит пула';
-                    stakeBtn.disabled = true;
-                    document.getElementById('profit-display').textContent = '0';
-                } else {
-                    warningDiv.innerHTML = '';
-                    stakeBtn.disabled = false;
-                    document.getElementById('profit-display').textContent = calculateProfit(amount, days);
-                }
-            } else {
-                document.getElementById('max-hint').innerHTML = 'Пул пуст, стейкинг недоступен';
-                stakeBtn.disabled = true;
-                document.getElementById('profit-display').textContent = '0';
-            }
-            
-            document.getElementById('my-stake').textContent = `${myStake} CER`;
-            document.getElementById('my-reward').textContent = `${myReward} CER`;
-            if (unlockTime > 0) {
-                const date = new Date(unlockTime * 1000);
-                document.getElementById('unlock-date').textContent = date.toLocaleDateString();
-            } else {
-                document.getElementById('unlock-date').textContent = '—';
-            }
-        }
-
-        async function getRewardPoolFromAPI() {
-            try {
-                const response = await fetch(`${API_URL}/reward_pool`);
-                const data = await response.json();
-                return data.rewardPool || 0;
-            } catch (e) {
-                console.error('Error getting reward pool:', e);
-                return 0;
-            }
-        }
-
-        async function checkPoolStatus() {
-            const statusSpan = document.getElementById('pool-status-text');
-            try {
-                rewardPool = await getRewardPoolFromAPI();
-                if (rewardPool > 0) {
-                    statusSpan.innerHTML = '✅ Активен';
-                    statusSpan.className = 'status-active';
-                } else {
-                    statusSpan.innerHTML = '❌ Неактивен';
-                    statusSpan.className = 'status-inactive';
-                }
-                updateUI();
-            } catch (e) {
-                console.error('Error:', e);
-                rewardPool = 0;
-                statusSpan.innerHTML = '❌ Неактивен';
-                statusSpan.className = 'status-inactive';
-                updateUI();
-            }
-        }
-
-        async function initTonConnect() {
-            tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-                manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
-                buttonRootId: 'connect-btn'
-            });
-            
-            tonConnectUI.onStatusChange(async (wallet) => {
-                if (wallet) {
-                    walletAddress = wallet.account.address;
-                    document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
-                    document.getElementById('wallet-address').innerHTML = walletAddress;
-                } else {
-                    walletAddress = null;
-                    document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
-                    document.getElementById('wallet-address').innerHTML = '';
-                }
-            });
-        }
-
-        document.getElementById('lock-days').addEventListener('change', updateUI);
-        document.getElementById('amount').addEventListener('input', updateUI);
-
-        document.getElementById('stake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            const amount = parseFloat(document.getElementById('amount').value);
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            
-            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
-            if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
-            
-            try {
-                // Запрашиваем у сервера адрес Jetton-кошелька
-                const response = await fetch(`${API_URL}/stake`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user: walletAddress,
-                        amount: amount,
-                        days: days
-                    })
-                });
-                const data = await response.json();
-                
-                if (!data.jettonWallet) {
-                    throw new Error('Не удалось получить Jetton-кошелек');
-                }
-                
-                // Формируем ссылку для отправки CER через Tonkeeper
-                const amountNano = Math.floor(amount * 1e9);
-                const url = `https://app.tonkeeper.com/jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountNano}&comment=${days}`;
-                window.open(url, '_blank');
-                
-            } catch(e) {
-                alert('Ошибка: ' + e.message);
-            }
-        });
-
-        document.getElementById('unstake-btn').addEventListener('click', () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.open(url, '_blank');
-        });
-
-        checkPoolStatus();
-        initTonConnect();
-        setInterval(checkPoolStatus, 30000);
-    </script>
-</body>
-</html>
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
