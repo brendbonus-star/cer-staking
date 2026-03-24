@@ -117,6 +117,7 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -197,11 +198,10 @@
         async function getMyStakeFromAPI() {
             if (!walletAddress) return;
             try {
-                // Пока нет API для получения стейка, возвращаем тестовые данные
                 // TODO: заменить на реальный запрос к контракту
-                myStake = 100; // тестовое значение
+                myStake = 0;
                 myReward = 0;
-                unlockTime = Date.now() / 1000 + 30 * 24 * 3600; // через 30 дней
+                unlockTime = 0;
                 updateUI();
             } catch (e) {
                 console.error('Error getting stake:', e);
@@ -264,8 +264,10 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            const comment = `stake:${days}`;
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=${amount}&text=${encodeURIComponent(comment)}`;
+            // Переводим CER в нано-единицы (9 знаков после запятой)
+            const amountInNano = Math.floor(amount * 1e9);
+            const comment = `${days}`;
+            const url = `https://app.tonkeeper.com/jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountInNano}&comment=${encodeURIComponent(comment)}`;
             
             window.open(url, '_blank');
         });
