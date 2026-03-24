@@ -117,7 +117,6 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
         let tonConnectUI;
         let walletAddress = null;
@@ -235,7 +234,6 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        // Кнопка стейкинга — открывает Tonkeeper с правильной ссылкой
         document.getElementById('stake-btn').addEventListener('click', () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
@@ -245,14 +243,11 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxAllowed) { alert('Сумма превышает доступный лимит пула'); return; }
             
-            // Формируем ссылку для отправки CER через Tonkeeper
-            const amountNano = Math.floor(amount * 1e9);
-            const url = `https://app.tonkeeper.com/jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountNano}&comment=${days}`;
-            
+            // Открываем Tonkeeper с заполненным адресом и комментарием
+            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?text=${days}`;
             window.open(url, '_blank');
         });
 
-        // Кнопка вывода — открывает Tonkeeper с комментарием unstake
         document.getElementById('unstake-btn').addEventListener('click', () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
