@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 import base64
 from ton import Cell, Address, begin_cell
 
 app = Flask(__name__)
+CORS(app)  # разрешаем запросы с любых доменов
 
 STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
 JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G"
@@ -37,23 +39,21 @@ def create_jetton_transfer_body(user_address, jetton_wallet, amount_cer, days):
     amount_nano = int(amount_cer * 1e9)
     forward_ton_amount = 100000000  # 0.1 TON для газа
     
-    # Создаём forwardPayload для комментария (срок)
     forward_payload = begin_cell()
-    forward_payload.store_uint(0, 32)      # opcode для комментария
+    forward_payload.store_uint(0, 32)
     forward_payload.store_string(f"{days}")
     forward_payload_cell = forward_payload.end_cell()
     
-    # Создаём тело Jetton Transfer
     body = begin_cell()
-    body.store_uint(0xf8a7ea5, 32)         # opcode jetton_transfer
-    body.store_uint(0, 64)                 # query_id
-    body.store_coins(amount_nano)          # сумма токена
-    body.store_address(Address(STAKING_ADDRESS))   # получатель
-    body.store_address(Address(user_address))      # адрес для возврата
-    body.store_bit(0)                      # custom_payload (отсутствует)
-    body.store_coins(forward_ton_amount)   # forward_ton_amount
-    body.store_bit(1)                      # forward_payload присутствует
-    body.store_ref(forward_payload_cell)   # прикрепляем комментарий
+    body.store_uint(0xf8a7ea5, 32)
+    body.store_uint(0, 64)
+    body.store_coins(amount_nano)
+    body.store_address(Address(STAKING_ADDRESS))
+    body.store_address(Address(user_address))
+    body.store_bit(0)
+    body.store_coins(forward_ton_amount)
+    body.store_bit(1)
+    body.store_ref(forward_payload_cell)
     
     return body.end_cell().to_boc().hex()
 
@@ -76,17 +76,13 @@ def stake():
     if not jetton_wallet:
         return jsonify({"error": "Jetton wallet not found"}), 404
     
-    # Создаём тело транзакции в формате base64
     tx_body_hex = create_jetton_transfer_body(user_address, jetton_wallet, amount, days)
     tx_body_base64 = base64.b64encode(bytes.fromhex(tx_body_hex)).decode('utf-8')
     
     return jsonify({
-        "jettonWallet": jetton_wallet,
-        "amount": amount,
-        "days": days,
         "unsignedTransaction": {
             "address": jetton_wallet,
-            "amount": "100000000",  # 0.1 TON для газа
+            "amount": "100000000",
             "payload": tx_body_base64
         }
     })
