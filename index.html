@@ -117,6 +117,9 @@
 
     <script>
         const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        const GETBLOCK_ENDPOINT = "https://go.getblock.io/587a061356a647d89d62e635a17cd169";
+        
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
@@ -143,7 +146,7 @@
             const stakeBtn = document.getElementById('stake-btn');
             
             if (rewardPool > 0 && maxAllowed > 0) {
-                document.getElementById('max-hint').innerHTML = `Максимум: ${maxAllowed} CER`;
+                document.getElementById('max-hint').innerHTML = `Максимум: ${maxAllowed} CER (пул: ${rewardPool} CER)`;
                 if (amount > maxAllowed) {
                     warningDiv.innerHTML = '⚠️ Сумма превышает доступный лимит пула';
                     stakeBtn.disabled = true;
@@ -163,26 +166,31 @@
         async function checkPoolStatus() {
             const statusSpan = document.getElementById('pool-status-text');
             try {
-                // Используем tonscan.org API для получения баланса CER
-                const url = `https://tonscan.org/api/v1/address/${STAKING_ADDRESS}/jettons`;
-                const response = await fetch(url);
+                // Запрос к контракту через GetBlock
+                const payload = {
+                    jsonrpc: "2.0",
+                    id: 1,
+                    method: "getRunMethod",
+                    params: {
+                        address: STAKING_ADDRESS,
+                        method: "getRewardPool",
+                        stack: []
+                    }
+                };
+                
+                const response = await fetch(GETBLOCK_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
                 const data = await response.json();
                 
-                if (data && data.jettons) {
-                    // Ищем токен CER по Jetton Master
-                    const cerJettonMaster = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-                    const cerJetton = data.jettons.find(j => j.master === cerJettonMaster);
-                    if (cerJetton && cerJetton.balance) {
-                        rewardPool = parseFloat(cerJetton.balance);
-                        if (rewardPool > 0) {
-                            statusSpan.innerHTML = '✅ Активен';
-                            statusSpan.className = 'status-active';
-                        } else {
-                            statusSpan.innerHTML = '❌ Неактивен';
-                            statusSpan.className = 'status-inactive';
-                        }
+                if (data.result && data.result.stack && data.result.stack[0]) {
+                    rewardPool = parseInt(data.result.stack[0][1], 16);
+                    if (rewardPool > 0) {
+                        statusSpan.innerHTML = '✅ Активен';
+                        statusSpan.className = 'status-active';
                     } else {
-                        rewardPool = 0;
                         statusSpan.innerHTML = '❌ Неактивен';
                         statusSpan.className = 'status-inactive';
                     }
