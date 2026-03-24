@@ -3,7 +3,6 @@ import requests
 
 app = Flask(__name__)
 
-STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
 JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G"
 
 def get_jetton_wallet(user_address):
@@ -31,26 +30,7 @@ def stake():
     if not jetton_wallet:
         return jsonify({"error": "Jetton wallet not found"}), 404
     
-    return jsonify({
-        "jettonWallet": jetton_wallet,
-        "amount": amount,
-        "days": days
-    })
-
-@app.route('/reward_pool', methods=['GET'])
-def reward_pool():
-    try:
-        url = f"https://tonapi.io/v2/accounts/{STAKING_ADDRESS}/jettons"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        if data and data.get("balances"):
-            for jetton in data["balances"]:
-                if jetton.get("jetton", {}).get("symbol") == "CER":
-                    balance = int(jetton.get("balance", 0))
-                    return jsonify({"rewardPool": balance / 1e9})
-        return jsonify({"rewardPool": 0})
-    except Exception as e:
-        return jsonify({"rewardPool": 0})
+    return jsonify({"jettonWallet": jetton_wallet})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
