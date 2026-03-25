@@ -10,7 +10,7 @@ const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
 const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
 const API_KEY = "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb";
 
-// Получение адреса Jetton-кошелька пользователя
+// Получение Jetton-кошелька пользователя
 async function getJettonWallet(userAddress) {
     try {
         const client = new TonClient({
@@ -46,13 +46,13 @@ app.post('/stake', async (req, res) => {
         const amountInNano = BigInt(Math.floor(amount * 1e9));
         const forwardTonAmount = 50000000n; // 0.05 TON
         
-        // Forward payload для комментария (срок)
+        // Forward payload для комментария (срок стейкинга)
         const forwardPayload = beginCell()
             .storeUint(0, 32)
             .storeStringTail(`${days}`)
             .endCell();
         
-        // Тело Jetton Transfer
+        // Тело Jetton Transfer (opcode 0xf8a7ea5)
         const body = beginCell()
             .storeUint(0xf8a7ea5, 32)
             .storeUint(0, 64)
@@ -81,7 +81,7 @@ app.post('/stake', async (req, res) => {
     }
 });
 
-// Эндпоинт для получения пула
+// Эндпоинт для получения пула (опционально, но можно оставить)
 app.get('/reward_pool', async (req, res) => {
     try {
         const client = new TonClient({
@@ -98,23 +98,6 @@ app.get('/reward_pool', async (req, res) => {
     } catch (e) {
         console.error('Error getting reward pool:', e);
         res.json({ rewardPool: 0 });
-    }
-});
-
-// Эндпоинт для проверки баланса пользователя (опционально)
-app.get('/balance/:address', async (req, res) => {
-    try {
-        const url = `https://tonapi.io/v2/accounts/${req.params.address}/jettons?jetton_master=${JETTON_MASTER}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data && data.balances && data.balances.length > 0) {
-            const balance = parseInt(data.balances[0].balance);
-            res.json({ balance: balance / 1e9 });
-        } else {
-            res.json({ balance: 0 });
-        }
-    } catch (e) {
-        res.json({ balance: 0 });
     }
 });
 
