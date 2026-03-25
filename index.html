@@ -81,6 +81,7 @@
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
 </head>
 <body>
     <div class="container">
@@ -142,6 +143,22 @@
         let myStake = 0;
         let myReward = 0;
         let unlockTime = 0;
+
+        // Ждём загрузки библиотеки TON_CORE
+        function waitForTonCore() {
+            return new Promise((resolve) => {
+                if (window.TON_CORE) {
+                    resolve();
+                } else {
+                    const check = setInterval(() => {
+                        if (window.TON_CORE) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 100);
+                }
+            });
+        }
 
         function calculateMaxAmount(days) {
             if (rewardPool <= 0) return 0;
@@ -279,8 +296,8 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        // === НОВЫЙ ВАРИАНТ: https://app.tonkeeper.com/transfer/${jettonWallet} ===
-        document.getElementById('stake-btn').addEventListener('click', () => {
+        // === ОТПРАВКА ЧЕРЕЗ TonConnect SDK с Cell ===
+        document.getElementById('stake-btn').addEventListener('click', async () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
@@ -295,18 +312,61 @@
                 return;
             }
             
-            const amountInNano = Math.floor(amount * 1e9);
-            const comment = `${days}`;
-            
-            // Используем https, а не ton://
-            const url = `https://app.tonkeeper.com/transfer/${jettonWallet}?amount=${amountInNano}&text=${comment}`;
-            window.open(url, '_blank');
+            try {
+                // Ждём загрузки TON_CORE
+                await waitForTonCore();
+                
+                const TON = window.TON_CORE;
+                const amountInNano = BigInt(Math.floor(amount * 1e9));
+                const forwardTonAmount = 50000000n; // 0.05 TON
+                
+                // Создаём forward payload для комментария (срок стейкинга)
+                const forwardPayload = new TON.Cell();
+                forwardPayload.bits.writeUint(0, 32);
+                forwardPayload.bits.writeString(`${days}`);
+                
+                // Создаём тело Jetton Transfer (opcode 0xf8a7ea5)
+                const body = new TON.Cell();
+                body.bits.writeUint(0xf8a7ea5, 32);
+                body.bits.writeUint(0, 64);
+                body.bits.writeCoins(amountInNano);
+                body.bits.writeAddress(TON.Address.parse(STAKING_ADDRESS));
+                body.bits.writeAddress(TON.Address.parse(walletAddress));
+                body.bits.writeBit(0); // custom_payload
+                body.bits.writeCoins(forwardTonAmount);
+                body.bits.writeBit(1); // forward_payload присутствует
+                body.bits.writeRef(forwardPayload);
+                
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: jettonWallet,
+                        amount: "50000000",
+                        payload: body.toBoc().toString("base64")
+                    }]
+                };
+                
+                await tonConnectUI.sendTransaction(transaction);
+                alert('Стейкинг отправлен!');
+            } catch(e) {
+                alert('Ошибка: ' + e.message);
+                console.error(e);
+            }
         });
 
-        document.getElementById('unstake-btn').addEventListener('click', () => {
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?amount=0&text=unstake`;
-            window.open(url, '_blank');
+            try {
+                await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: STAKING_ADDRESS,
+                        amount: "0",
+                        payload: "unstake"
+                    }]
+                });
+                alert('Запрос на вывод отправлен!');
+            } catch(e) { alert('Ошибка: ' + e.message); }
         });
 
         checkPoolStatus();
