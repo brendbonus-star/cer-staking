@@ -284,9 +284,12 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxByBalance) { alert('Сумма превышает ваш баланс или лимит пула'); return; }
             
+            const amountInNano = Math.floor(amount * 1e9);
             const comment = `${days}`;
-            const url = `https://app.tonkeeper.com/transfer/${STAKING_ADDRESS}?text=${comment}`;
-            window.open(url, '_blank');
+            
+            // Правильная ссылка для отправки Jetton через Tonkeeper
+            const url = `ton://jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountInNano}&text=${comment}`;
+            window.location.href = url;
         });
 
         document.getElementById('unstake-btn').addEventListener('click', () => {
