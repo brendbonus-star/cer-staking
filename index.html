@@ -138,6 +138,7 @@
         let walletAddress = null;
         let rewardPool = 0;
         let userBalance = 0;
+        let jettonWallet = null;
         let myStake = 0;
         let myReward = 0;
         let unlockTime = 0;
@@ -211,18 +212,21 @@
             }
         }
 
-        async function getUserBalanceFromAPI(address) {
+        async function getUserBalanceAndJettonWallet(address) {
             try {
                 const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 if (data && data.balances && data.balances.length > 0) {
                     const balance = parseInt(data.balances[0].balance);
+                    jettonWallet = data.balances[0].wallet_address.address;
                     return balance / 1e9;
                 }
+                jettonWallet = null;
                 return 0;
             } catch (e) {
                 console.error('Error getting user balance:', e);
+                jettonWallet = null;
                 return 0;
             }
         }
@@ -259,10 +263,11 @@
                     walletAddress = wallet.account.address;
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
-                    userBalance = await getUserBalanceFromAPI(walletAddress);
+                    userBalance = await getUserBalanceAndJettonWallet(walletAddress);
                     updateUI();
                 } else {
                     walletAddress = null;
+                    jettonWallet = null;
                     userBalance = 0;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
@@ -274,6 +279,7 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
+        // === ПРАВИЛЬНАЯ ССЫЛКА НА JETTON-КОШЕЛЕК ПОЛЬЗОВАТЕЛЯ ===
         document.getElementById('stake-btn').addEventListener('click', () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
@@ -284,11 +290,16 @@
             if (!amount || amount <= 0) { alert('Введите сумму'); return; }
             if (amount > maxByBalance) { alert('Сумма превышает ваш баланс или лимит пула'); return; }
             
+            if (!jettonWallet) {
+                alert('Ошибка: Jetton-кошелек не найден. Попробуйте переподключить кошелек.');
+                return;
+            }
+            
             const amountInNano = Math.floor(amount * 1e9);
             const comment = `${days}`;
             
-            // Правильная ссылка для отправки Jetton через Tonkeeper
-            const url = `ton://jetton-transfer/${JETTON_MASTER}?to=${STAKING_ADDRESS}&amount=${amountInNano}&text=${comment}`;
+            // Ссылка на Jetton-кошелек пользователя (правильный формат)
+            const url = `ton://transfer/${jettonWallet}?amount=${amountInNano}&text=${comment}`;
             window.location.href = url;
         });
 
