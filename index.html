@@ -279,7 +279,7 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        // === ПРАВИЛЬНАЯ ССЫЛКА НА JETTON-КОШЕЛЕК ПОЛЬЗОВАТЕЛЯ ===
+        // === НОВЫЙ ВАРИАНТ: https://app.tonkeeper.com/transfer/${jettonWallet} ===
         document.getElementById('stake-btn').addEventListener('click', () => {
             if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
             const amount = parseFloat(document.getElementById('amount').value);
@@ -298,9 +298,9 @@
             const amountInNano = Math.floor(amount * 1e9);
             const comment = `${days}`;
             
-            // Ссылка на Jetton-кошелек пользователя (правильный формат)
-            const url = `ton://transfer/${jettonWallet}?amount=${amountInNano}&text=${comment}`;
-            window.location.href = url;
+            // Используем https, а не ton://
+            const url = `https://app.tonkeeper.com/transfer/${jettonWallet}?amount=${amountInNano}&text=${comment}`;
+            window.open(url, '_blank');
         });
 
         document.getElementById('unstake-btn').addEventListener('click', () => {
