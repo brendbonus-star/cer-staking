@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { TonClient, Address, beginCell, WalletContractV4, internal } from '@ton/ton';
+import { TonClient, Address, beginCell, WalletContractV4, internal, Cell } from '@ton/ton';
 import { mnemonicToPrivateKey } from '@ton/crypto';
 import { initDb, getDb } from './db.js';
 
