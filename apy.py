@@ -1,103 +1,205 @@
+import asyncio
+import os
+import sqlite3
+from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
 import requests
-import base64
-from pytoniq import Cell, Address, begin_cell
+from ton import TonlibClient
+from ton.utils import to_nano
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs"
-JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G"
+# ===== КОНФИГ =====
+TRANSIT_MNEMONIC = os.getenv("TRANSIT_MNEMONIC", "oven vacuum they usage depart usage humble drastic auto enjoy learn proud return news upon father busy olive rebuild hood panic fox use impact").split()
+API_KEY = os.getenv("API_KEY", "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "EQCDij22bDxzEA9F17A6h6HPTxi03giM7hSt0AP_NLH7cJHb")
+TRANSIT_ADDRESS = os.getenv("TRANSIT_ADDRESS", "0:41e4e9e0fae239d6cacd7b53f7069d0c9e742bbed48919a5991fc7fbd1f2e10e")
+LEADER_ADDRESS = os.getenv("LEADER_ADDRESS", "EQAmOJb8WPlCKhj6fyE2xGsvohshFx4xqOiMYWowtHKfeEdX")
 
-# --- Функция для получения адреса Jetton-кошелька отправителя ---
-# Это то, чего не хватало в моем прошлом коде!
-def get_sender_jetton_wallet(user_address):
-    url = f"https://tonapi.io/v2/accounts/{user_address}/jettons?jetton_master={JETTON_MASTER}"
+DB_PATH = "staking.db"
+
+# ===== БАЗА ДАННЫХ =====
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS processed_txs (
+            tx_hash TEXT PRIMARY KEY,
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stakes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_address TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            days INTEGER NOT NULL,
+            stake_time INTEGER NOT NULL,
+            lock_period INTEGER NOT NULL,
+            fixed_rate INTEGER NOT NULL,
+            status TEXT DEFAULT 'active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def is_tx_processed(tx_hash):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM processed_txs WHERE tx_hash = ?", (tx_hash,))
+    exists = c.fetchone() is not None
+    conn.close()
+    return exists
+
+def mark_tx_processed(tx_hash):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO processed_txs (tx_hash) VALUES (?)", (tx_hash,))
+    conn.commit()
+    conn.close()
+
+# ===== ПАРСИНГ ТРАНЗАКЦИЙ =====
+def extract_comment_from_ton_transfer(tx):
+    """Извлекает комментарий из TON-транзакции"""
     try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        # Находим баланс и адрес кошелька для токена CER
-        if data and data.get("balances") and len(data["balances"]) > 0:
-            return data["balances"][0]["wallet_address"]["address"]
-    except Exception as e:
-        print(f"Error: {e}")
-    return None
+        # В транзакции есть поле in_msg.msg_data.body (base64)
+        body = tx.get('in_msg', {}).get('msg_data', {}).get('body')
+        if not body:
+            return None
+        import base64
+        decoded = base64.b64decode(body).decode('utf-8', errors='ignore')
+        # Ищем цифры
+        import re
+        match = re.search(r'\d+', decoded)
+        return match.group(0) if match else None
+    except:
+        return None
 
-# --- Функция для получения баланса пула (уже работала) ---
-def get_reward_pool():
-    try:
-        url = f"https://tonapi.io/v2/accounts/{STAKING_ADDRESS}/jettons"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        if data and data.get("balances"):
-            for jetton in data["balances"]:
-                if jetton.get("jetton", {}).get("symbol") == "CER":
-                    balance = int(jetton.get("balance", 0))
-                    return balance / 1e9
-        return 0
-    except Exception as e:
-        return 0
+# ===== ВЫЗОВ КОНТРАКТА =====
+async def call_contract(method, body_comment):
+    """Отправляет транзакцию из транзитного кошелька в контракт"""
+    client = TonlibClient()
+    await client.init_tonlib()
+    
+    wallet = await client.import_wallet(TRANSIT_MNEMONIC)
+    print(f"Кошелек: {wallet.address}")
+    
+    await wallet.transfer(
+        destination=CONTRACT_ADDRESS,
+        amount=to_nano('0.01'),
+        comment=body_comment
+    )
+    print(f"Команда {method} отправлена")
 
-# --- Функция для создания правильного тела Jetton-перевода ---
-def create_jetton_transfer_body(user_address, amount_cer, days):
-    # 1. Переводим сумму CER в нано-единицы
-    amount_nano = int(amount_cer * 1e9)
+# ===== ОБРАБОТКА КОММЕНТАРИЕВ =====
+async def process_comment(comment, from_address, amount):
+    print(f"Обработка: comment={comment}, from={from_address}, amount={amount}")
+    
+    if comment in ['30', '90', '180', '365']:
+        days = int(comment)
+        # Вызов stake на контракте
+        await call_contract('stake', f'stake:{days}:{from_address}:{amount}')
+        print(f"Стейк {amount} CER на {days} дней от {from_address}")
+    
+    elif comment == '0':
+        await call_contract('unstake', 'unstake')
+        print(f"Unstake от {from_address}")
+    
+    elif comment == '777' and from_address == LEADER_ADDRESS:
+        await call_contract('addReward', 'addReward')
+        print(f"Пул пополнен на {amount} CER")
+    
+    elif comment.startswith('rate') and from_address == LEADER_ADDRESS:
+        # rate30:5000
+        parts = comment.split(':')
+        if len(parts) == 2 and parts[0].startswith('rate'):
+            period = parts[0][4:]  # '30'
+            new_rate = parts[1]
+            await call_contract('setMaxRate', f'setMaxRate:{new_rate}')
+            print(f"Ставка для {period} дней изменена на {new_rate}")
+    
+    elif comment == '9999':
+        await call_contract('emergencyWithdraw', 'emergencyWithdraw')
+        print(f"Аварийный вывод от {from_address}")
+    
+    elif comment == '778' and from_address == LEADER_ADDRESS:
+        await call_contract('withdrawPool', 'withdrawPool')
+        print("Пул выведен лидером")
+    
+    elif comment == '7777' and from_address == LEADER_ADDRESS:
+        await call_contract('emergencyWithdrawPool', 'emergencyWithdrawPool')
+        print("Аварийный вывод пула лидером")
+    
+    else:
+        print(f"Неизвестный комментарий: {comment} от {from_address}")
 
-    # 2. Получаем адрес Jetton-кошелька, с которого будут отправляться токены
-    sender_jetton_wallet = get_sender_jetton_wallet(user_address)
-    if not sender_jetton_wallet:
-        raise Exception("Не удалось найти ваш Jetton-кошелек для CER")
-    print(f"Sender jetton wallet: {sender_jetton_wallet}")
+# ===== ФОНОВЫЙ ОПРОС ТРАНЗАКЦИЙ =====
+async def check_transactions_loop():
+    """Запускается в фоне и опрашивает Toncenter API"""
+    while True:
+        try:
+            # Получаем транзакции транзитного кошелька
+            url = f"https://toncenter.com/api/v2/getTransactions?address={TRANSIT_ADDRESS}&limit=20&api_key={API_KEY}"
+            response = requests.get(url)
+            data = response.json()
+            
+            if not data.get('ok'):
+                print("Ошибка API")
+                await asyncio.sleep(30)
+                continue
+            
+            for tx in data.get('result', []):
+                tx_hash = tx.get('transaction_id', {}).get('hash')
+                if not tx_hash or is_tx_processed(tx_hash):
+                    continue
+                
+                # Извлекаем комментарий
+                comment = extract_comment_from_ton_transfer(tx)
+                if not comment:
+                    continue
+                
+                # Отправитель и сумма
+                from_address = tx.get('in_msg', {}).get('source')
+                amount = int(tx.get('in_msg', {}).get('value', 0)) / 1e9
+                
+                await process_comment(comment, from_address, amount)
+                mark_tx_processed(tx_hash)
+        
+        except Exception as e:
+            print(f"Ошибка опроса транзакций: {e}")
+        
+        await asyncio.sleep(30)
 
-    # 3. Создаем forwardPayload для комментария (срок стейкинга)
-    forward_payload = begin_cell()
-    forward_payload.store_uint(0, 32)          # 0 opcode для комментария
-    forward_payload.store_string(f"{days}")   # Записываем срок (30, 90, 180, 365)
-    forward_payload_cell = forward_payload.end_cell()
-
-    # 4. Создаем тело Jetton Transfer с правильным opcode (0xf8a7ea5)[citation:1][citation:4][citation:6]
-    body = begin_cell()
-    body.store_uint(0xf8a7ea5, 32)            # opcode jetton_transfer
-    body.store_uint(0, 64)                    # query_id (0)
-    body.store_coins(amount_nano)             # Сумма CER для перевода
-    body.store_address(Address(STAKING_ADDRESS))   # Кому (контракт стейкинга)
-    body.store_address(Address(user_address))      # Адрес для возврата (ваш кошелек)
-    body.store_bit(0)                         # custom_payload (отсутствует)
-    body.store_coins(100000000)               # forward_ton_amount (0.1 TON для газа)
-    body.store_bit(1)                         # forward_payload присутствует
-    body.store_ref(forward_payload_cell)      # Прикрепляем комментарий с сроком
-
-    # 5. Возвращаем сформированную транзакцию
-    return {
-        "address": sender_jetton_wallet,          # Отправляем на Jetton-кошелек отправителя!
-        "amount": "100000000",                    # 0.1 TON для комиссии (излишек вернется)
-        "payload": body.end_cell().to_boc().hex()
-    }
-
-# --- Эндпоинт для Mini App (возвращает пул) ---
+# ===== ЭНДПОИНТЫ ДЛЯ MINI APP =====
 @app.route('/reward_pool', methods=['GET'])
-def reward_pool():
-    pool = get_reward_pool()
-    return jsonify({"rewardPool": pool})
+def get_reward_pool():
+    # TODO: запросить контракт через TonlibClient
+    return jsonify({"rewardPool": 0})
 
-# --- Эндпоинт для кнопки "Стейкать" ---
+@app.route('/rates', methods=['GET'])
+def get_rates():
+    # TODO: запросить ставки из контракта
+    return jsonify({"rate30": 821, "rate90": 2466, "rate180": 4932, "rate365": 10000})
+
 @app.route('/stake', methods=['POST'])
 def stake():
-    data = request.json
-    user_address = data.get('user')
-    amount = float(data.get('amount'))
-    days = data.get('days')
-    
-    if not user_address or not amount or not days:
-        return jsonify({"error": "Missing parameters"}), 400
-    
-    try:
-        # Формируем транзакцию прямо на сервере
-        tx = create_jetton_transfer_body(user_address, amount, days)
-        return jsonify({"transaction": tx})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    # Этот эндпоинт уже не нужен, т.к. стейкинг идёт через транзитный кошелек
+    return jsonify({"error": "Direct stake not supported"}), 400
 
+# ===== ЗАПУСК =====
 if __name__ == '__main__':
+    init_db()
+    
+    # Запускаем фоновую задачу в отдельном потоке
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(check_transactions_loop())
+    
+    # Запускаем Flask
     app.run(host='0.0.0.0', port=5000)
