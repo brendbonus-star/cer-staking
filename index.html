@@ -48,6 +48,7 @@
         }
         .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-admin { background: linear-gradient(135deg, #aa8800, #886600); color: white; }
         input, select {
             width: 100%;
             padding: 16px;
@@ -78,6 +79,31 @@
             color: #00ff88;
             font-weight: bold;
             font-size: 18px;
+        }
+        .admin-panel {
+            display: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .admin-panel h4 {
+            margin-bottom: 15px;
+            color: #ffaa44;
+        }
+        .rate-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .rate-row input {
+            flex: 1;
+            margin: 0;
+        }
+        .rate-row button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
@@ -129,12 +155,45 @@
         <div class="card">
             <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
         </div>
+
+        <!-- Админ-панель (видна только лидеру) -->
+        <div id="admin-panel" class="card admin-panel">
+            <h4>⚙️ Админ-панель</h4>
+            <div class="rate-row">
+                <input type="number" id="rate30" placeholder="Ставка 30 дней (10000 = 100%)">
+                <button id="set-rate30" class="btn-admin">Изменить 30 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate90" placeholder="Ставка 90 дней">
+                <button id="set-rate90" class="btn-admin">Изменить 90 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate180" placeholder="Ставка 180 дней">
+                <button id="set-rate180" class="btn-admin">Изменить 180 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate365" placeholder="Ставка 365 дней">
+                <button id="set-rate365" class="btn-admin">Изменить 365 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="pool-amount" placeholder="Сумма CER для пула">
+                <button id="add-reward" class="btn-admin">💰 Пополнить пул</button>
+            </div>
+            <div class="rate-row">
+                <button id="withdraw-pool" class="btn-admin">📤 Вывести пул (778)</button>
+            </div>
+            <div class="rate-row">
+                <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        const STAKING_ADDRESS = "EQBLEMocvp-FS-jfhEKAQ2261_ZwJRvUKmaHHhZXIizLJQvs";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        
+        // ===== КОНФИГ =====
+        const TRANSIT_WALLET = "UQAeaEXndDNbDcX9sVMZz0iragNLlF6i2Uj00859LP9whbN6";
+        const LEADER_ADDRESS = "UQAmOJb8WPlCKhj6fyE2xGsvohshFx4xqOiMYWowtHKfeBqS";
+        const API_URL = window.location.origin; // если сервер на том же домене
+
         let tonConnectUI;
         let walletAddress = null;
         let rewardPool = 0;
@@ -144,94 +203,16 @@
         let myReward = 0;
         let unlockTime = 0;
 
-        // Ждём загрузки библиотеки TON_CORE
-        function waitForTonCore() {
-            return new Promise((resolve) => {
-                if (window.TON_CORE) {
-                    resolve();
-                } else {
-                    const check = setInterval(() => {
-                        if (window.TON_CORE) {
-                            clearInterval(check);
-                            resolve();
-                        }
-                    }, 100);
-                }
-            });
-        }
-
-        function calculateMaxAmount(days) {
-            if (rewardPool <= 0) return 0;
-            return Math.floor(rewardPool * 365 / days);
-        }
-
+        // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
         function calculateProfit(amount, days) {
-            if (amount <= 0) return 0;
-            const maxAllowed = calculateMaxAmount(days);
-            if (amount > maxAllowed && maxAllowed > 0) return 0;
-            return ((amount * days / 365 * 100) / 100).toFixed(2);
-        }
-
-        function updateUI() {
-            const amount = parseFloat(document.getElementById('amount').value) || 0;
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            const warningDiv = document.getElementById('warning');
-            const stakeBtn = document.getElementById('stake-btn');
-            
-            const maxByBalance = Math.min(userBalance, maxAllowed);
-            
-            if (rewardPool > 0 && maxAllowed > 0 && userBalance > 0) {
-                document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance} CER (пул: ${rewardPool} CER, ваш баланс: ${userBalance} CER)`;
-                if (amount > maxByBalance) {
-                    warningDiv.innerHTML = '⚠️ Сумма превышает ваш баланс или лимит пула';
-                    stakeBtn.disabled = true;
-                    document.getElementById('profit-display').textContent = '0';
-                } else {
-                    warningDiv.innerHTML = '';
-                    stakeBtn.disabled = false;
-                    document.getElementById('profit-display').textContent = calculateProfit(amount, days);
-                }
-            } else {
-                document.getElementById('max-hint').innerHTML = 'Пул пуст или нет CER на кошельке';
-                stakeBtn.disabled = true;
-                document.getElementById('profit-display').textContent = '0';
-            }
-            
-            document.getElementById('my-stake').textContent = `${myStake} CER`;
-            document.getElementById('my-reward').textContent = `${myReward} CER`;
-            if (unlockTime > 0) {
-                const date = new Date(unlockTime * 1000);
-                document.getElementById('unlock-date').textContent = date.toLocaleDateString();
-            } else {
-                document.getElementById('unlock-date').textContent = '—';
-            }
-            document.getElementById('cer-balance').textContent = userBalance;
-        }
-
-        async function getRewardPoolDirect() {
-            try {
-                const url = `https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data && data.balances) {
-                    for (const jetton of data.balances) {
-                        if (jetton.jetton && jetton.jetton.symbol === "CER") {
-                            const balance = parseInt(jetton.balance);
-                            return balance / 1e9;
-                        }
-                    }
-                }
-                return 0;
-            } catch (e) {
-                console.error('Error getting reward pool:', e);
-                return 0;
-            }
+            const rates = {30: 821, 90: 2466, 180: 4932, 365: 10000};
+            const rate = rates[days];
+            return (amount * rate / 10000).toFixed(2);
         }
 
         async function getUserBalanceAndJettonWallet(address) {
             try {
-                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
+                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G`;
                 const response = await fetch(url);
                 const data = await response.json();
                 if (data && data.balances && data.balances.length > 0) {
@@ -242,33 +223,155 @@
                 jettonWallet = null;
                 return 0;
             } catch (e) {
-                console.error('Error getting user balance:', e);
                 jettonWallet = null;
                 return 0;
             }
         }
 
-        async function checkPoolStatus() {
-            const statusSpan = document.getElementById('pool-status-text');
+        async function getRewardPool() {
             try {
-                rewardPool = await getRewardPoolDirect();
-                if (rewardPool > 0) {
-                    statusSpan.innerHTML = '✅ Активен';
-                    statusSpan.className = 'status-active';
-                } else {
-                    statusSpan.innerHTML = '❌ Неактивен';
-                    statusSpan.className = 'status-inactive';
-                }
-                updateUI();
+                const res = await fetch(`${API_URL}/reward_pool`);
+                const data = await res.json();
+                return data.rewardPool || 0;
             } catch (e) {
-                console.error('Error:', e);
-                rewardPool = 0;
-                statusSpan.innerHTML = '❌ Неактивен';
-                statusSpan.className = 'status-inactive';
-                updateUI();
+                return 0;
             }
         }
 
+        async function updateData() {
+            if (walletAddress) {
+                userBalance = await getUserBalanceAndJettonWallet(walletAddress);
+                document.getElementById('cer-balance').textContent = userBalance;
+                // TODO: получить стейки пользователя через API
+            }
+            rewardPool = await getRewardPool();
+            const statusSpan = document.getElementById('pool-status-text');
+            if (rewardPool > 0) {
+                statusSpan.innerHTML = '✅ Активен';
+                statusSpan.className = 'status-active';
+            } else {
+                statusSpan.innerHTML = '❌ Неактивен';
+                statusSpan.className = 'status-inactive';
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const days = parseInt(document.getElementById('lock-days').value);
+            const profit = calculateProfit(amount, days);
+            document.getElementById('profit-display').textContent = profit;
+            
+            const maxByBalance = Math.min(userBalance, rewardPool);
+            document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance} CER (пул: ${rewardPool} CER, ваш баланс: ${userBalance} CER)`;
+            
+            if (amount > maxByBalance) {
+                document.getElementById('warning').innerHTML = '⚠️ Сумма превышает ваш баланс или лимит пула';
+                document.getElementById('stake-btn').disabled = true;
+            } else {
+                document.getElementById('warning').innerHTML = '';
+                document.getElementById('stake-btn').disabled = false;
+            }
+            
+            document.getElementById('my-stake').textContent = `${myStake} CER`;
+            document.getElementById('my-reward').textContent = `${myReward} CER`;
+        }
+
+        // ===== ОТПРАВКА ТРАНЗАКЦИИ =====
+        async function sendComment(comment, amount = "0.000000001") {
+            if (!walletAddress) throw new Error('Кошелек не подключен');
+            if (!jettonWallet && comment !== "0" && comment !== "unstake") {
+                throw new Error('Jetton-кошелек не найден');
+            }
+            
+            const amountInNano = Math.floor(parseFloat(amount) * 1e9);
+            
+            // Создаем forward payload для комментария
+            const forwardPayload = new TON_CORE.Cell();
+            forwardPayload.bits.writeUint(0, 32);
+            forwardPayload.bits.writeString(comment);
+            
+            // Тело Jetton Transfer (opcode 0xf8a7ea5)
+            const body = new TON_CORE.Cell();
+            body.bits.writeUint(0xf8a7ea5, 32);
+            body.bits.writeUint(0, 64);
+            body.bits.writeCoins(BigInt(amountInNano));
+            body.bits.writeAddress(TON_CORE.Address.parse(TRANSIT_WALLET));
+            body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));
+            body.bits.writeBit(0);
+            body.bits.writeCoins(50000000n);
+            body.bits.writeBit(1);
+            body.bits.writeRef(forwardPayload);
+            
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600,
+                messages: [{
+                    address: jettonWallet,
+                    amount: "50000000",
+                    payload: body.toBoc().toString("base64")
+                }]
+            };
+            
+            await tonConnectUI.sendTransaction(transaction);
+        }
+
+        // ===== ОБРАБОТЧИКИ =====
+        document.getElementById('stake-btn').addEventListener('click', async () => {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const days = parseInt(document.getElementById('lock-days').value);
+            if (amount <= 0) return alert('Введите сумму');
+            if (amount > Math.min(userBalance, rewardPool)) return alert('Сумма превышает лимит');
+            try {
+                await sendComment(days.toString(), amount.toString());
+                alert('Стейк отправлен!');
+            } catch(e) { alert('Ошибка: ' + e.message); }
+        });
+
+        document.getElementById('unstake-btn').addEventListener('click', async () => {
+            try {
+                await sendComment("0", "0.000000001");
+                alert('Запрос на вывод отправлен!');
+            } catch(e) { alert('Ошибка: ' + e.message); }
+        });
+
+        // Админ-функции (только для лидера)
+        async function adminSend(comment, amount = "0.000000001") {
+            if (walletAddress !== LEADER_ADDRESS) return alert('Только лидер');
+            try {
+                await sendComment(comment, amount);
+                alert(`Команда "${comment}" отправлена`);
+            } catch(e) { alert('Ошибка: ' + e.message); }
+        }
+
+        document.getElementById('set-rate30').onclick = () => {
+            const rate = document.getElementById('rate30').value;
+            if (!rate) return;
+            adminSend(`rate30:${rate}`);
+        };
+        document.getElementById('set-rate90').onclick = () => {
+            const rate = document.getElementById('rate90').value;
+            if (!rate) return;
+            adminSend(`rate90:${rate}`);
+        };
+        document.getElementById('set-rate180').onclick = () => {
+            const rate = document.getElementById('rate180').value;
+            if (!rate) return;
+            adminSend(`rate180:${rate}`);
+        };
+        document.getElementById('set-rate365').onclick = () => {
+            const rate = document.getElementById('rate365').value;
+            if (!rate) return;
+            adminSend(`rate365:${rate}`);
+        };
+        document.getElementById('add-reward').onclick = () => {
+            const amount = document.getElementById('pool-amount').value;
+            if (!amount) return;
+            adminSend('777', amount);
+        };
+        document.getElementById('withdraw-pool').onclick = () => adminSend('778');
+        document.getElementById('emergency-withdraw-pool').onclick = () => adminSend('7777');
+
+        // ===== ИНИЦИАЛИЗАЦИЯ TON CONNECT =====
         async function initTonConnect() {
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
@@ -280,15 +383,19 @@
                     walletAddress = wallet.account.address;
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
-                    userBalance = await getUserBalanceAndJettonWallet(walletAddress);
-                    updateUI();
+                    await updateData();
+                    
+                    // Показываем админ-панель, если это лидер
+                    if (walletAddress === LEADER_ADDRESS) {
+                        document.getElementById('admin-panel').style.display = 'block';
+                    } else {
+                        document.getElementById('admin-panel').style.display = 'none';
+                    }
                 } else {
                     walletAddress = null;
-                    jettonWallet = null;
-                    userBalance = 0;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
-                    updateUI();
+                    document.getElementById('admin-panel').style.display = 'none';
                 }
             });
         }
@@ -296,82 +403,9 @@
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
 
-        // === ОТПРАВКА ЧЕРЕЗ TonConnect SDK с Cell ===
-        document.getElementById('stake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            const amount = parseFloat(document.getElementById('amount').value);
-            const days = parseInt(document.getElementById('lock-days').value);
-            const maxAllowed = calculateMaxAmount(days);
-            const maxByBalance = Math.min(userBalance, maxAllowed);
-            
-            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
-            if (amount > maxByBalance) { alert('Сумма превышает ваш баланс или лимит пула'); return; }
-            
-            if (!jettonWallet) {
-                alert('Ошибка: Jetton-кошелек не найден. Попробуйте переподключить кошелек.');
-                return;
-            }
-            
-            try {
-                // Ждём загрузки TON_CORE
-                await waitForTonCore();
-                
-                const TON = window.TON_CORE;
-                const amountInNano = BigInt(Math.floor(amount * 1e9));
-                const forwardTonAmount = 50000000n; // 0.05 TON
-                
-                // Создаём forward payload для комментария (срок стейкинга)
-                const forwardPayload = new TON.Cell();
-                forwardPayload.bits.writeUint(0, 32);
-                forwardPayload.bits.writeString(`${days}`);
-                
-                // Создаём тело Jetton Transfer (opcode 0xf8a7ea5)
-                const body = new TON.Cell();
-                body.bits.writeUint(0xf8a7ea5, 32);
-                body.bits.writeUint(0, 64);
-                body.bits.writeCoins(amountInNano);
-                body.bits.writeAddress(TON.Address.parse(STAKING_ADDRESS));
-                body.bits.writeAddress(TON.Address.parse(walletAddress));
-                body.bits.writeBit(0); // custom_payload
-                body.bits.writeCoins(forwardTonAmount);
-                body.bits.writeBit(1); // forward_payload присутствует
-                body.bits.writeRef(forwardPayload);
-                
-                const transaction = {
-                    validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: jettonWallet,
-                        amount: "50000000",
-                        payload: body.toBoc().toString("base64")
-                    }]
-                };
-                
-                await tonConnectUI.sendTransaction(transaction);
-                alert('Стейкинг отправлен!');
-            } catch(e) {
-                alert('Ошибка: ' + e.message);
-                console.error(e);
-            }
-        });
-
-        document.getElementById('unstake-btn').addEventListener('click', async () => {
-            if (!walletAddress) { alert('Сначала подключите кошелек'); return; }
-            try {
-                await tonConnectUI.sendTransaction({
-                    validUntil: Math.floor(Date.now() / 1000) + 600,
-                    messages: [{
-                        address: STAKING_ADDRESS,
-                        amount: "0",
-                        payload: "unstake"
-                    }]
-                });
-                alert('Запрос на вывод отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
-        });
-
-        checkPoolStatus();
         initTonConnect();
-        setInterval(checkPoolStatus, 30000);
+        updateData();
+        setInterval(updateData, 30000);
     </script>
 </body>
 </html>
