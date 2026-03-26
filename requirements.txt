@@ -1,6 +1,5 @@
-pyTelegramBotAPI==4.22.0
-requests==2.31.0
 Flask==2.3.3
-python-dotenv==1.0.0
 Flask-CORS==4.0.0
-pytoniq==0.2.0
+requests==2.31.0
+python-dotenv==1.0.0
+ton
