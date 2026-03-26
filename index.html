@@ -190,7 +190,7 @@
 
     <script>
         // ===== КОНФИГ =====
-        const TRANSIT_WALLET = "UQAeaEXndDNbDcX9sVMZz0iragNLlF6i2Uj00859LP9whbN6";
+        const TRANSIT_WALLET = "UQBB5Ong-uI51srNe1P3Bp0MnnQrvtSJGaWZH8f70fLhDiQj";
         const LEADER_ADDRESS = "UQAmOJb8WPlCKhj6fyE2xGsvohshFx4xqOiMYWowtHKfeBqS";
         const API_URL = window.location.origin; // если сервер на том же домене
 
@@ -385,7 +385,6 @@
                     document.getElementById('wallet-address').innerHTML = walletAddress;
                     await updateData();
                     
-                    // Показываем админ-панель, если это лидер
                     if (walletAddress === LEADER_ADDRESS) {
                         document.getElementById('admin-panel').style.display = 'block';
                     } else {
