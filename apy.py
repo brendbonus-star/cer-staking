@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sqlite3
-from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -15,8 +14,12 @@ app = Flask(__name__)
 CORS(app)
 
 # ===== КОНФИГ =====
-TRANSIT_MNEMONIC = os.getenv("TRANSIT_MNEMONIC", "oven vacuum they usage depart usage humble drastic auto enjoy learn proud return news upon father busy olive rebuild hood panic fox use impact").split()
-API_KEY = os.getenv("API_KEY", "d72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb")
+TRANSIT_MNEMONIC = os.getenv("TRANSIT_MNEMONIC", "").split()
+if not TRANSIT_MNEMONIC:
+    print("❌ Ошибка: TRANSIT_MNEMONIC не найдена в .env")
+    exit(1)
+
+API_KEY = os.getenv("API_KEY", "")
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "EQCDij22bDxzEA9F17A6h6HPTxi03giM7hSt0AP_NLH7cJHb")
 TRANSIT_ADDRESS = os.getenv("TRANSIT_ADDRESS", "0:41e4e9e0fae239d6cacd7b53f7069d0c9e742bbed48919a5991fc7fbd1f2e10e")
 LEADER_ADDRESS = os.getenv("LEADER_ADDRESS", "EQAmOJb8WPlCKhj6fyE2xGsvohshFx4xqOiMYWowtHKfeEdX")
@@ -66,15 +69,12 @@ def mark_tx_processed(tx_hash):
 
 # ===== ПАРСИНГ ТРАНЗАКЦИЙ =====
 def extract_comment_from_ton_transfer(tx):
-    """Извлекает комментарий из TON-транзакции"""
     try:
-        # В транзакции есть поле in_msg.msg_data.body (base64)
         body = tx.get('in_msg', {}).get('msg_data', {}).get('body')
         if not body:
             return None
         import base64
         decoded = base64.b64decode(body).decode('utf-8', errors='ignore')
-        # Ищем цифры
         import re
         match = re.search(r'\d+', decoded)
         return match.group(0) if match else None
@@ -83,13 +83,10 @@ def extract_comment_from_ton_transfer(tx):
 
 # ===== ВЫЗОВ КОНТРАКТА =====
 async def call_contract(method, body_comment):
-    """Отправляет транзакцию из транзитного кошелька в контракт"""
     client = TonlibClient()
     await client.init_tonlib()
-    
     wallet = await client.import_wallet(TRANSIT_MNEMONIC)
     print(f"Кошелек: {wallet.address}")
-    
     await wallet.transfer(
         destination=CONTRACT_ADDRESS,
         amount=to_nano('0.01'),
@@ -102,10 +99,8 @@ async def process_comment(comment, from_address, amount):
     print(f"Обработка: comment={comment}, from={from_address}, amount={amount}")
     
     if comment in ['30', '90', '180', '365']:
-        days = int(comment)
-        # Вызов stake на контракте
-        await call_contract('stake', f'stake:{days}:{from_address}:{amount}')
-        print(f"Стейк {amount} CER на {days} дней от {from_address}")
+        await call_contract('stake', f'stake:{comment}:{from_address}:{amount}')
+        print(f"Стейк {amount} CER на {comment} дней от {from_address}")
     
     elif comment == '0':
         await call_contract('unstake', 'unstake')
@@ -116,10 +111,9 @@ async def process_comment(comment, from_address, amount):
         print(f"Пул пополнен на {amount} CER")
     
     elif comment.startswith('rate') and from_address == LEADER_ADDRESS:
-        # rate30:5000
         parts = comment.split(':')
         if len(parts) == 2 and parts[0].startswith('rate'):
-            period = parts[0][4:]  # '30'
+            period = parts[0][4:]
             new_rate = parts[1]
             await call_contract('setMaxRate', f'setMaxRate:{new_rate}')
             print(f"Ставка для {period} дней изменена на {new_rate}")
@@ -141,10 +135,8 @@ async def process_comment(comment, from_address, amount):
 
 # ===== ФОНОВЫЙ ОПРОС ТРАНЗАКЦИЙ =====
 async def check_transactions_loop():
-    """Запускается в фоне и опрашивает Toncenter API"""
     while True:
         try:
-            # Получаем транзакции транзитного кошелька
             url = f"https://toncenter.com/api/v2/getTransactions?address={TRANSIT_ADDRESS}&limit=20&api_key={API_KEY}"
             response = requests.get(url)
             data = response.json()
@@ -159,12 +151,10 @@ async def check_transactions_loop():
                 if not tx_hash or is_tx_processed(tx_hash):
                     continue
                 
-                # Извлекаем комментарий
                 comment = extract_comment_from_ton_transfer(tx)
                 if not comment:
                     continue
                 
-                # Отправитель и сумма
                 from_address = tx.get('in_msg', {}).get('source')
                 amount = int(tx.get('in_msg', {}).get('value', 0)) / 1e9
                 
@@ -176,30 +166,23 @@ async def check_transactions_loop():
         
         await asyncio.sleep(30)
 
-# ===== ЭНДПОИНТЫ ДЛЯ MINI APP =====
+# ===== ЭНДПОИНТЫ =====
 @app.route('/reward_pool', methods=['GET'])
 def get_reward_pool():
-    # TODO: запросить контракт через TonlibClient
     return jsonify({"rewardPool": 0})
 
 @app.route('/rates', methods=['GET'])
 def get_rates():
-    # TODO: запросить ставки из контракта
     return jsonify({"rate30": 821, "rate90": 2466, "rate180": 4932, "rate365": 10000})
 
 @app.route('/stake', methods=['POST'])
 def stake():
-    # Этот эндпоинт уже не нужен, т.к. стейкинг идёт через транзитный кошелек
     return jsonify({"error": "Direct stake not supported"}), 400
 
 # ===== ЗАПУСК =====
 if __name__ == '__main__':
     init_db()
-    
-    # Запускаем фоновую задачу в отдельном потоке
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.create_task(check_transactions_loop())
-    
-    # Запускаем Flask
     app.run(host='0.0.0.0', port=5000)
