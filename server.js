@@ -11,31 +11,39 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+if (!process.env.TRANSIT_MNEMONIC) {
+    console.error('❌ Ошибка: TRANSIT_MNEMONIC не найдена в .env');
+    console.error('Создайте файл .env с содержимым:');
+    console.error('TRANSIT_MNEMONIC=ваша_сид_фраза');
+    process.exit(1);
+}
+
 const client = new TonClient({
     endpoint: 'https://toncenter.com/api/v2/jsonRPC',
-    apiKey: process.env.API_KEY
+    apiKey: process.env.API_KEY || ''
 });
 
 let db;
 let wallet;
+let key;
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
 async function init() {
+    console.log('Загрузка базы данных...');
     db = await initDb();
     
-    // Загружаем кошелек из сид-фразы
+    console.log('Загрузка кошелька...');
     const mnemonic = process.env.TRANSIT_MNEMONIC.split(' ');
-    const key = await mnemonicToPrivateKey(mnemonic);
+    key = await mnemonicToPrivateKey(mnemonic);
     wallet = WalletContractV4.create({ publicKey: key.publicKey, workchain: 0 });
     
-    console.log('Transit wallet address:', wallet.address.toString());
+    console.log('✅ Транзитный кошелек:', wallet.address.toString());
     
-    // Запускаем опрос транзакций
     setInterval(checkTransactions, 30000);
-    await checkTransactions(); // сразу при старте
+    await checkTransactions();
 }
 
-// ===== ПОЛУЧЕНИЕ КОММЕНТАРИЯ ИЗ FORWARD_PAYLOAD =====
+// ===== ПОЛУЧЕНИЕ КОММЕНТАРИЯ =====
 function parseComment(cell) {
     try {
         const slice = cell.beginParse();
@@ -49,21 +57,15 @@ function parseComment(cell) {
 
 // ===== ПАРСИНГ JETTON-ТРАНЗАКЦИИ =====
 async function parseJettonTransfer(tx) {
-    // Проверяем, что это входящая Jetton-транзакция
     if (!tx.in_msg?.source || !tx.in_msg?.msg_data?.body) return null;
     
-    // Проверяем, что сообщение пришло от Jetton-кошелька
-    const jettonWallet = tx.in_msg.source;
-    
-    // Декодируем тело
     const bodyCell = Cell.fromBoc(Buffer.from(tx.in_msg.msg_data.body, 'base64'))[0];
     const slice = bodyCell.beginParse();
     const op = slice.loadUint(32);
     
-    // opcode transfer_notification = 0x7362d09c
     if (op !== 0x7362d09c) return null;
     
-    const queryId = slice.loadUint(64);
+    const queryId = slice.loadUintBig(64);
     const amount = slice.loadCoins();
     const from = slice.loadAddress();
     const maybeRef = slice.loadBit();
@@ -80,7 +82,7 @@ async function parseJettonTransfer(tx) {
 }
 
 // ===== ВЫЗОВ КОНТРАКТА =====
-async function callContract(method, params) {
+async function callContract(method, body) {
     const seqno = await wallet.getSeqno(client);
     const transfer = await wallet.createTransfer({
         seqno,
@@ -89,7 +91,7 @@ async function callContract(method, params) {
             internal({
                 to: process.env.CONTRACT_ADDRESS,
                 value: '0.01',
-                body: params.body,
+                body: body,
                 bounce: true
             })
         ]
@@ -102,35 +104,27 @@ async function callContract(method, params) {
 async function processComment(comment, from, amount) {
     const leaderAddress = process.env.LEADER_ADDRESS;
     
-    // Стейкинг
     if (['30', '90', '180', '365'].includes(comment)) {
         const days = parseInt(comment);
         const body = beginCell()
-            .storeUint(0, 32) // opcode для StakeData
+            .storeUint(0, 32)
             .storeAddress(Address.parse(from))
             .storeCoins(BigInt(Math.floor(amount * 1e9)))
             .storeUint(days, 32)
             .endCell();
-        
-        await callContract('stake', { body });
+        await callContract('stake', body);
         console.log(`Stake: ${amount} CER for ${days} days from ${from}`);
     }
-    
-    // Unstake
     else if (comment === '0') {
         const body = beginCell().storeUint(0, 32).storeStringTail('unstake').endCell();
-        await callContract('unstake', { body });
+        await callContract('unstake', body);
         console.log(`Unstake from ${from}`);
     }
-    
-    // Пополнение пула (только лидер)
     else if (comment === '777' && from === leaderAddress) {
         const body = beginCell().storeUint(0, 32).storeStringTail('addReward').endCell();
-        await callContract('addReward', { body });
+        await callContract('addReward', body);
         console.log(`Reward pool increased by ${amount} CER`);
     }
-    
-    // Изменение ставки (только лидер)
     else if (comment.startsWith('rate') && from === leaderAddress) {
         const match = comment.match(/rate(\d+):(\d+)/);
         if (match) {
@@ -140,32 +134,25 @@ async function processComment(comment, from, amount) {
                 .storeUint(0, 32)
                 .storeStringTail(`setMaxRate:${newRate}`)
                 .endCell();
-            await callContract('setMaxRate', { body });
+            await callContract('setMaxRate', body);
             console.log(`Rate for ${period} days changed to ${newRate}`);
         }
     }
-    
-    // Аварийный вывод
     else if (comment === '9999') {
         const body = beginCell().storeUint(0, 32).storeStringTail('emergencyWithdraw').endCell();
-        await callContract('emergencyWithdraw', { body });
+        await callContract('emergencyWithdraw', body);
         console.log(`Emergency withdraw from ${from}`);
     }
-    
-    // Вывод пула (только лидер)
     else if (comment === '778' && from === leaderAddress) {
         const body = beginCell().storeUint(0, 32).storeStringTail('withdrawPool').endCell();
-        await callContract('withdrawPool', { body });
+        await callContract('withdrawPool', body);
         console.log(`Pool withdrawn by leader`);
     }
-    
-    // Аварийный вывод пула (только лидер)
     else if (comment === '7777' && from === leaderAddress) {
         const body = beginCell().storeUint(0, 32).storeStringTail('emergencyWithdrawPool').endCell();
-        await callContract('emergencyWithdrawPool', { body });
+        await callContract('emergencyWithdrawPool', body);
         console.log(`Emergency pool withdraw by leader`);
     }
-    
     else {
         console.log(`Unknown comment: ${comment} from ${from}`);
     }
@@ -181,7 +168,6 @@ async function checkTransactions() {
         if (!data.ok) return;
         
         for (const tx of data.result) {
-            // Проверяем, не обрабатывали ли уже эту транзакцию
             const exists = await db.get('SELECT 1 FROM processed_txs WHERE tx_hash = ?', [tx.transaction_id.hash]);
             if (exists) continue;
             
@@ -190,7 +176,6 @@ async function checkTransactions() {
                 await processComment(jettonData.comment, jettonData.from, jettonData.amount);
             }
             
-            // Отмечаем как обработанную
             await db.run('INSERT INTO processed_txs (tx_hash) VALUES (?)', [tx.transaction_id.hash]);
         }
     } catch (e) {
@@ -198,7 +183,7 @@ async function checkTransactions() {
     }
 }
 
-// ===== ЭНДПОИНТЫ ДЛЯ MINI APP =====
+// ===== ЭНДПОИНТЫ =====
 app.get('/reward_pool', async (req, res) => {
     try {
         const result = await client.runMethod(process.env.CONTRACT_ADDRESS, 'getRewardPool', []);
@@ -224,12 +209,6 @@ app.get('/rates', async (req, res) => {
     } catch (e) {
         res.json({ rate30: 0, rate90: 0, rate180: 0, rate365: 0 });
     }
-});
-
-app.get('/stake/:address/:id', async (req, res) => {
-    // Возвращает данные конкретного стейка
-    // TODO: реализовать
-    res.json({});
 });
 
 app.listen(3000, () => {
