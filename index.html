@@ -45,9 +45,11 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.3s;
         }
+        button:active { transform: scale(0.98); }
         .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn-admin { background: linear-gradient(135deg, #aa8800, #886600); color: white; }
         input, select {
             width: 100%;
@@ -134,7 +136,7 @@
 
         <div class="card">
             <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
-            <button id="connect-btn">🔌 Подключить кошелек</button>
+            <div id="connect-btn"></div>
             <div id="wallet-address" class="wallet-info"></div>
         </div>
 
@@ -218,9 +220,14 @@
             console.log(msg);
         }
 
-        // Кодирование комментария в base64
-        function encodeComment(comment) {
-            return btoa(comment);
+        // Правильное формирование payload для TON транзакции с комментарием
+        function encodeTextPayload(text) {
+            // Создаем cell с текстовым комментарием
+            // Формат: 0x00 + текст (как в TON)
+            const textBytes = new TextEncoder().encode(text);
+            const cellData = [0x00, ...textBytes];
+            // Преобразуем в base64
+            return btoa(String.fromCharCode(...cellData));
         }
 
         async function getUserJettonWallet(address) {
@@ -314,9 +321,8 @@
                 return false;
             }
             
-            // Конвертируем TON в нанотонны
             const amountNano = (parseFloat(amountTon) * 1e9).toString();
-            const payload = encodeComment(comment);
+            const payload = encodeTextPayload(comment);
             
             addLog(`📦 Amount (nano): ${amountNano}`);
             addLog(`📦 Payload (base64): ${payload}`);
