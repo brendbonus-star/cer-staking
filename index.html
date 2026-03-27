@@ -237,8 +237,6 @@
                 if (d && d.balances && d.balances.length > 0) {
                     jettonWallet = d.balances[0].wallet_address.address;
                     addLog(`✅ Jetton-кошелек: ${jettonWallet}`);
-                    const converted = toRawAddress(jettonWallet);
-                    addLog(`✅ Конвертированный: ${converted}`);
                     return parseInt(d.balances[0].balance) / 1e9;
                 }
                 jettonWallet = null;
@@ -318,8 +316,11 @@
             
             const rawJettonAddress = toRawAddress(jettonWallet);
             const rawResponseAddress = toRawAddress(walletAddress);
+            const rawDestination = toRawAddress(STAKING_ADDRESS);
+            
             addLog(`📤 Jetton адрес: ${rawJettonAddress}`);
             addLog(`📤 Response адрес: ${rawResponseAddress}`);
+            addLog(`📤 Destination: ${rawDestination}`);
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -329,14 +330,12 @@
                     payload: {
                         type: "JettonTransfer",
                         amount: amountNano.toString(),
-                        destination: STAKING_ADDRESS,
+                        destination: rawDestination,
                         responseDestination: rawResponseAddress,
                         forwardPayload: comment
                     }
                 }]
             };
-            
-            addLog(`📨 Transaction: ${JSON.stringify(transaction)}`);
             
             try {
                 const result = await tonConnectUI.sendTransaction(transaction);
