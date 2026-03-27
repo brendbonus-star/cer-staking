@@ -106,6 +106,7 @@
             margin: 0;
         }
     </style>
+    <script src="/ton.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
@@ -196,6 +197,14 @@
         let userBalance = 0;
         let rewardPool = 0;
 
+        // Дожидаемся загрузки TON библиотеки
+        async function waitForTon() {
+            while (!window.TON_CORE && !window.ton) {
+                await new Promise(r => setTimeout(r, 200));
+            }
+            return window.TON_CORE || window.ton;
+        }
+
         async function getUserJettonWallet(address) {
             try {
                 const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
@@ -266,23 +275,33 @@
             }
         }
 
-        async function sendComment(comment, amount = "0.000000001") {
-            if (!walletAddress) throw new Error('Кошелек не подключен');
-            if (!jettonWallet) throw new Error('Jetton-кошелек не найден');
+        async function sendJetton(comment, amount) {
+            const Ton = await waitForTon();
             const amountNano = Math.floor(parseFloat(amount) * 1e9);
             
-            // Формируем тело сообщения через TonConnect (билдим Cell через встроенный TonWeb, если он доступен)
-            // Вместо TON_CORE используем прямой API TonConnect — он принимает payload как base64
-            // Пока отправим простую транзакцию с комментарием через TonConnect (без сложного тела)
-            // Это временный вариант, чтобы проверить связь
+            // Создаем forward payload
+            const forwardPayload = new Ton.Cell();
+            forwardPayload.bits.writeUint(0, 32);
+            forwardPayload.bits.writeString(comment);
             
-            // Используем метод sendTransaction с простым комментарием
+            // Тело Jetton Transfer
+            const body = new Ton.Cell();
+            body.bits.writeUint(0xf8a7ea5, 32);
+            body.bits.writeUint(0, 64);
+            body.bits.writeCoins(BigInt(amountNano));
+            body.bits.writeAddress(Ton.Address.parse(STAKING_ADDRESS));
+            body.bits.writeAddress(Ton.Address.parse(walletAddress));
+            body.bits.writeBit(0);
+            body.bits.writeCoins(50000000n);
+            body.bits.writeBit(1);
+            body.bits.writeRef(forwardPayload);
+            
             const tx = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [{
-                    address: STAKING_ADDRESS,
-                    amount: "0",
-                    payload: comment
+                    address: jettonWallet,
+                    amount: "50000000",
+                    payload: body.toBoc().toString("base64")
                 }]
             };
             await tonConnectUI.sendTransaction(tx);
@@ -293,22 +312,25 @@
             const days = parseInt(document.getElementById('lock-days').value);
             if (!amount || amount <= 0) return alert('Введите сумму');
             if (amount > Math.min(userBalance, rewardPool)) return alert('Сумма превышает лимит');
+            if (!jettonWallet) return alert('Jetton-кошелек не найден');
             try {
-                await sendComment(days.toString(), amount.toString());
+                await sendJetton(days.toString(), amount.toString());
                 alert('Стейк отправлен!');
             } catch(e) { alert('Ошибка: ' + e.message); }
         };
 
         document.getElementById('unstake-btn').onclick = async () => {
+            if (!jettonWallet) return alert('Jetton-кошелек не найден');
             try {
-                await sendComment("0", "0.000000001");
+                await sendJetton("0", "0.000000001");
                 alert('Запрос на вывод отправлен!');
             } catch(e) { alert('Ошибка: ' + e.message); }
         };
 
         async function adminSend(comment, amount = "0.000000001") {
+            if (!jettonWallet) return alert('Jetton-кошелек не найден');
             try {
-                await sendComment(comment, amount);
+                await sendJetton(comment, amount);
                 alert(`Команда "${comment}" отправлена`);
             } catch(e) { alert('Ошибка: ' + e.message); }
         }
