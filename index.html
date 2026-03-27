@@ -192,7 +192,13 @@
         // ===== КОНФИГ =====
         const STAKING_ADDRESS = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const API_URL = window.location.origin; // если сервер на том же домене
+        
+        // Получаем TON библиотеку
+        const TON = window.TON_CORE || window.ton;
+        if (!TON) {
+            console.error('TON библиотека не загружена');
+            alert('Ошибка: библиотека TON не загружена. Обновите страницу.');
+        }
 
         let tonConnectUI;
         let walletAddress = null;
@@ -230,9 +236,16 @@
 
         async function getRewardPool() {
             try {
-                const res = await fetch(`${API_URL}/reward_pool`);
+                const res = await fetch(`https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`);
                 const data = await res.json();
-                return data.rewardPool || 0;
+                if (data && data.balances) {
+                    for (const jetton of data.balances) {
+                        if (jetton.jetton && jetton.jetton.symbol === "CER") {
+                            return parseInt(jetton.balance) / 1e9;
+                        }
+                    }
+                }
+                return 0;
             } catch (e) {
                 return 0;
             }
@@ -242,7 +255,7 @@
             if (walletAddress) {
                 userBalance = await getUserBalanceAndJettonWallet(walletAddress);
                 document.getElementById('cer-balance').textContent = userBalance;
-                // TODO: получить стейки пользователя через API
+                // TODO: получить стейки пользователя через контракт
             }
             rewardPool = await getRewardPool();
             const statusSpan = document.getElementById('pool-status-text');
@@ -280,24 +293,25 @@
         // ===== ОТПРАВКА ТРАНЗАКЦИИ =====
         async function sendComment(comment, amount = "0.000000001") {
             if (!walletAddress) throw new Error('Кошелек не подключен');
-            if (!jettonWallet && comment !== "0" && comment !== "unstake") {
-                throw new Error('Jetton-кошелек не найден');
+            if (!jettonWallet) {
+                throw new Error('Jetton-кошелек не найден. Убедитесь, что у вас есть CER.');
             }
+            if (!TON) throw new Error('TON библиотека не загружена');
             
             const amountInNano = Math.floor(parseFloat(amount) * 1e9);
             
             // Создаем forward payload для комментария
-            const forwardPayload = new TON_CORE.Cell();
+            const forwardPayload = new TON.Cell();
             forwardPayload.bits.writeUint(0, 32);
             forwardPayload.bits.writeString(comment);
             
             // Тело Jetton Transfer (opcode 0xf8a7ea5)
-            const body = new TON_CORE.Cell();
+            const body = new TON.Cell();
             body.bits.writeUint(0xf8a7ea5, 32);
             body.bits.writeUint(0, 64);
             body.bits.writeCoins(BigInt(amountInNano));
-            body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS));
-            body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));
+            body.bits.writeAddress(TON.Address.parse(STAKING_ADDRESS));
+            body.bits.writeAddress(TON.Address.parse(walletAddress));
             body.bits.writeBit(0);
             body.bits.writeCoins(50000000n);
             body.bits.writeBit(1);
@@ -336,8 +350,6 @@
 
         // Админ-функции (только для владельца контракта)
         async function adminSend(comment, amount = "0.000000001") {
-            // Проверка, что подключенный кошелек является владельцем контракта
-            // TODO: получить owner из контракта и сравнить с walletAddress
             try {
                 await sendComment(comment, amount);
                 alert(`Команда "${comment}" отправлена`);
@@ -386,7 +398,7 @@
                     document.getElementById('wallet-address').innerHTML = walletAddress;
                     await updateData();
                     
-                    // Показываем админ-панель (временно для всех, потом нужно будет проверять owner)
+                    // Показываем админ-панель (временно для всех)
                     document.getElementById('admin-panel').style.display = 'block';
                 } else {
                     walletAddress = null;
