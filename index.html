@@ -219,19 +219,23 @@
             console.log(msg);
         }
 
+        // Прямое использование window.ton или window.TON_CORE
+        function getTon() {
+            if (window.ton) return window.ton;
+            if (window.TON_CORE) return window.TON_CORE;
+            return null;
+        }
+
         async function waitForTon() {
             let attempts = 0;
-            while (!window.ton && !window.TON_CORE && attempts < 100) {
+            while (!getTon() && attempts < 100) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
             }
-            if (window.ton) {
-                addLog('✅ window.ton загружен');
-                return window.ton;
-            }
-            if (window.TON_CORE) {
-                addLog('✅ TON_CORE загружен');
-                return window.TON_CORE;
+            const ton = getTon();
+            if (ton) {
+                addLog('✅ Ton библиотека загружена');
+                return ton;
             }
             addLog('❌ Ошибка: библиотека ton не загружена');
             throw new Error('TON library not loaded');
@@ -429,6 +433,11 @@
             await updateData();
             setInterval(updateData, 30000);
         }
+
+        // Проверка после загрузки
+        setTimeout(() => {
+            addLog(`Проверка: window.ton = ${window.ton ? 'да' : 'нет'}, window.TON_CORE = ${window.TON_CORE ? 'да' : 'нет'}`);
+        }, 1000);
 
         document.getElementById('lock-days').addEventListener('change', updateUI);
         document.getElementById('amount').addEventListener('input', updateUI);
