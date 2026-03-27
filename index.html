@@ -220,7 +220,6 @@
             console.log(msg);
         }
 
-        // Простая конвертация 0:... в EQ...
         function toRawAddress(address) {
             if (!address) return address;
             if (address.startsWith('0:')) {
@@ -317,23 +316,27 @@
                 return false;
             }
             
-            const rawAddress = toRawAddress(jettonWallet);
-            addLog(`📤 Адрес для отправки: ${rawAddress}`);
+            const rawJettonAddress = toRawAddress(jettonWallet);
+            const rawResponseAddress = toRawAddress(walletAddress);
+            addLog(`📤 Jetton адрес: ${rawJettonAddress}`);
+            addLog(`📤 Response адрес: ${rawResponseAddress}`);
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [{
-                    address: rawAddress,
+                    address: rawJettonAddress,
                     amount: "0",
                     payload: {
                         type: "JettonTransfer",
                         amount: amountNano.toString(),
                         destination: STAKING_ADDRESS,
-                        responseDestination: walletAddress,
+                        responseDestination: rawResponseAddress,
                         forwardPayload: comment
                     }
                 }]
             };
+            
+            addLog(`📨 Transaction: ${JSON.stringify(transaction)}`);
             
             try {
                 const result = await tonConnectUI.sendTransaction(transaction);
