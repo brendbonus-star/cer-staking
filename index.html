@@ -122,6 +122,7 @@
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tonweb@0.0.69/dist/tonweb.js"></script>
 </head>
 <body>
     <div class="container">
@@ -211,6 +212,7 @@
         let jettonWallet = null;
         let userBalance = 0;
         let rewardPool = 0;
+        let tonweb = null;
 
         function addLog(msg) {
             const logDiv = document.getElementById('log-area');
@@ -226,6 +228,50 @@
                 return 'EQ' + address.slice(2);
             }
             return address;
+        }
+
+        // Создание JettonTransfer payload через TonWeb
+        async function createJettonTransferPayload(jettonWalletAddress, destinationAddress, amountNano, responseAddress, comment) {
+            try {
+                addLog(`🔧 Создание payload через TonWeb...`);
+                
+                // Создаем экземпляр TonWeb
+                const provider = { getBalance: async () => '0' };
+                const tonwebInstance = new TonWeb(provider);
+                
+                // Парсим адреса
+                const jettonWalletAddr = new TonWeb.Address(jettonWalletAddress);
+                const destAddr = new TonWeb.Address(destinationAddress);
+                const responseAddr = new TonWeb.Address(responseAddress);
+                
+                // Создаем тело перевода (transfer)
+                // op: 0xf8a7ea5 (transfer)
+                const transferBody = new TonWeb.boc.Cell();
+                transferBody.bits.writeUint(0xf8a7ea5, 32); // op
+                transferBody.bits.writeUint(0, 64); // query_id
+                transferBody.bits.writeCoins(amountNano); // amount
+                transferBody.bits.writeAddress(destAddr); // destination
+                transferBody.bits.writeAddress(responseAddr); // response_destination
+                transferBody.bits.writeBit(0); // custom_payload null
+                transferBody.bits.writeCoins(1); // forward_amount (1 nano для комментария)
+                
+                // Добавляем комментарий
+                const commentCell = new TonWeb.boc.Cell();
+                commentCell.bits.writeUint(0, 32);
+                commentCell.bits.writeString(comment);
+                transferBody.bits.writeBit(1); // forward_payload присутствует
+                transferBody.bits.writeRef(commentCell);
+                
+                // Кодируем в base64
+                const boc = transferBody.toBoc();
+                const payload = TonWeb.utils.bytesToBase64(boc);
+                
+                addLog(`✅ Payload создан, длина: ${payload.length}`);
+                return payload;
+            } catch(e) {
+                addLog(`❌ Ошибка создания payload: ${e.message}`);
+                return null;
+            }
         }
 
         async function getUserJettonWallet(address) {
@@ -322,22 +368,30 @@
             addLog(`📤 Response адрес: ${rawResponseAddress}`);
             addLog(`📤 Destination: ${rawDestination}`);
             
+            // Создаем payload через TonWeb
+            const payload = await createJettonTransferPayload(
+                rawJettonAddress,
+                rawDestination,
+                amountNano,
+                rawResponseAddress,
+                comment
+            );
+            
+            if (!payload) {
+                alert('Ошибка создания payload');
+                return false;
+            }
+            
+            addLog(`📦 Payload (base64): ${payload.substring(0, 50)}...`);
+            
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [{
                     address: rawJettonAddress,
                     amount: "0",
-                    payload: {
-                        type: "JettonTransfer",
-                        amount: amountNano.toString(),
-                        destination: { type: "Address", address: rawDestination },
-                        responseDestination: { type: "Address", address: rawResponseAddress },
-                        forwardPayload: comment
-                    }
+                    payload: payload
                 }]
             };
-            
-            addLog(`📨 Transaction: ${JSON.stringify(transaction)}`);
             
             try {
                 const result = await tonConnectUI.sendTransaction(transaction);
@@ -399,6 +453,15 @@
 
         async function init() {
             addLog('🚀 Инициализация...');
+            
+            // Инициализируем TonWeb
+            if (typeof TonWeb !== 'undefined') {
+                tonweb = new TonWeb();
+                addLog('✅ TonWeb загружен');
+            } else {
+                addLog('⚠️ TonWeb не загружен');
+            }
+            
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
                 buttonRootId: 'connect-btn'
