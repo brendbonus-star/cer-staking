@@ -1,68 +1,494 @@
-import express from 'express';
-import cors from 'cors';
-import { Address, beginCell } from '@ton/ton';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CER Staking</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, #a0a0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { text-align: center; opacity: 0.6; font-size: 14px; margin-bottom: 24px; }
+        .pool-status { text-align: center; margin-bottom: 20px; }
+        .status-active { color: #00ff88; font-weight: 600; display: inline-block; background: rgba(0, 255, 136, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-inactive { color: #ff4444; font-weight: 600; display: inline-block; background: rgba(255, 68, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-loading { color: #ffaa44; font-weight: 600; display: inline-block; background: rgba(255, 170, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        button {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-admin { background: linear-gradient(135deg, #aa8800, #886600); color: white; }
+        input, select {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 16px;
+        }
+        .wallet-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 12px; margin-top: 10px; font-size: 12px; word-break: break-all; }
+        .stake-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
+        .stake-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .label { opacity: 0.6; }
+        .value { font-weight: 600; }
+        .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
+        .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
+        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
+        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
+        .user-balance {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .user-balance span {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .admin-panel {
+            display: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .admin-panel h4 {
+            margin-bottom: 15px;
+            color: #ffaa44;
+        }
+        .rate-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .rate-row input {
+            flex: 1;
+            margin: 0;
+        }
+        .rate-row button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
+        }
+        #log-area {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tonweb@0.0.69/dist/tonweb.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 CER STAKING</h1>
+        <div class="subtitle">до 100% годовых</div>
 
-const app = express();
-const PORT = process.env.PORT || 80;
+        <div class="card">
+            <div class="pool-status">
+                <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
+            </div>
+        </div>
 
-app.use(cors());
-app.use(express.json());
+        <div class="card">
+            <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
+            <div id="connect-btn"></div>
+            <div id="wallet-address" class="wallet-info"></div>
+        </div>
 
-function toRawAddress(address) {
-    if (!address) return address;
-    if (address.startsWith('0:')) {
-        return 'EQ' + address.slice(2);
-    }
-    return address;
-}
+        <div class="card">
+            <div id="user-balance" class="user-balance">
+                💎 Ваш баланс CER: <span id="cer-balance">0</span>
+            </div>
+            <div class="stake-info">
+                <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">🔓 Разблокировка:</span><span id="unlock-date" class="value">—</span></div>
+            </div>
+        </div>
 
-app.get('/', (req, res) => {
-    res.send('CER Staking Backend is running');
-});
+        <div class="card">
+            <h3>💸 Новый стейк</h3>
+            <input type="number" id="amount" placeholder="Сумма CER" value="100">
+            <select id="lock-days">
+                <option value="30">30 дней — 8.22% годовых</option>
+                <option value="90">90 дней — 24.66% годовых</option>
+                <option value="180">180 дней — 49.32% годовых</option>
+                <option value="365">365 дней — 100% годовых</option>
+            </select>
+            <div id="max-hint" class="max-hint"></div>
+            <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
+            <div id="warning" class="warning"></div>
+            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
+        </div>
 
-app.get('/ping', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
-});
+        <div class="card">
+            <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
+        </div>
 
-app.post('/create-payload', async (req, res) => {
-    try {
-        const { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
-        
-        console.log('📥 Получен запрос:', { jettonWallet, destination, amountNano, responseAddress, comment });
-        
-        const destAddr = Address.parse(toRawAddress(destination));
-        const responseAddr = Address.parse(toRawAddress(responseAddress));
-        
-        const commentCell = beginCell()
-            .storeUint(0, 32)
-            .storeStringTail(comment)
-            .endCell();
-        
-        const transferBody = beginCell()
-            .storeUint(0xf8a7ea5, 32)
-            .storeUint(0, 64)
-            .storeCoins(BigInt(amountNano))
-            .storeAddress(destAddr)
-            .storeAddress(responseAddr)
-            .storeBit(0)
-            .storeCoins(1)
-            .storeBit(1)
-            .storeRef(commentCell)
-            .endCell();
-        
-        const boc = transferBody.toBoc();
-        const payload = boc.toString('base64');
-        
-        console.log('✅ Payload создан, длина:', payload.length);
-        
-        res.json({ success: true, payload });
-        
-    } catch (error) {
-        console.error('❌ Ошибка:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+        <div id="admin-panel" class="card admin-panel">
+            <h4>⚙️ Админ-панель</h4>
+            <div class="rate-row">
+                <input type="number" id="rate30" placeholder="Ставка 30 дней (10000 = 100%)">
+                <button id="set-rate30" class="btn-admin">Изменить 30 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate90" placeholder="Ставка 90 дней">
+                <button id="set-rate90" class="btn-admin">Изменить 90 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate180" placeholder="Ставка 180 дней">
+                <button id="set-rate180" class="btn-admin">Изменить 180 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate365" placeholder="Ставка 365 дней">
+                <button id="set-rate365" class="btn-admin">Изменить 365 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="pool-amount" placeholder="Сумма CER для пула">
+                <button id="add-reward" class="btn-admin">💰 Пополнить пул</button>
+            </div>
+            <div class="rate-row">
+                <button id="withdraw-pool" class="btn-admin">📤 Вывести пул (778)</button>
+            </div>
+            <div class="rate-row">
+                <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
+            </div>
+        </div>
+        <div id="log-area"></div>
+    </div>
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Сервер запущен на порту ${PORT}`);
-});
+    <script>
+        const STAKING_ADDRESS = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        
+        let tonConnectUI;
+        let walletAddress = null;
+        let jettonWallet = null;
+        let userBalance = 0;
+        let rewardPool = 0;
+        let tonweb = null;
+
+        function addLog(msg) {
+            const logDiv = document.getElementById('log-area');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        function toRawAddress(address) {
+            if (!address) return address;
+            if (address.startsWith('0:')) {
+                return 'EQ' + address.slice(2);
+            }
+            return address;
+        }
+
+        // Создание JettonTransfer payload через TonWeb
+        async function createJettonTransferPayload(jettonWalletAddress, destinationAddress, amountNano, responseAddress, comment) {
+            try {
+                addLog(`🔧 Создание payload через TonWeb...`);
+                
+                // Создаем экземпляр TonWeb
+                const provider = { getBalance: async () => '0' };
+                const tonwebInstance = new TonWeb(provider);
+                
+                // Парсим адреса
+                const jettonWalletAddr = new TonWeb.Address(jettonWalletAddress);
+                const destAddr = new TonWeb.Address(destinationAddress);
+                const responseAddr = new TonWeb.Address(responseAddress);
+                
+                // Создаем тело перевода (transfer)
+                // op: 0xf8a7ea5 (transfer)
+                const transferBody = new TonWeb.boc.Cell();
+                transferBody.bits.writeUint(0xf8a7ea5, 32); // op
+                transferBody.bits.writeUint(0, 64); // query_id
+                transferBody.bits.writeCoins(amountNano); // amount
+                transferBody.bits.writeAddress(destAddr); // destination
+                transferBody.bits.writeAddress(responseAddr); // response_destination
+                transferBody.bits.writeBit(0); // custom_payload null
+                transferBody.bits.writeCoins(1); // forward_amount (1 nano для комментария)
+                
+                // Добавляем комментарий
+                const commentCell = new TonWeb.boc.Cell();
+                commentCell.bits.writeUint(0, 32);
+                commentCell.bits.writeString(comment);
+                transferBody.bits.writeBit(1); // forward_payload присутствует
+                transferBody.bits.writeRef(commentCell);
+                
+                // Кодируем в base64
+                const boc = transferBody.toBoc();
+                const payload = TonWeb.utils.bytesToBase64(boc);
+                
+                addLog(`✅ Payload создан, длина: ${payload.length}`);
+                return payload;
+            } catch(e) {
+                addLog(`❌ Ошибка создания payload: ${e.message}`);
+                return null;
+            }
+        }
+
+        async function getUserJettonWallet(address) {
+            try {
+                addLog(`Запрос Jetton-кошелька...`);
+                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
+                const r = await fetch(url);
+                const d = await r.json();
+                if (d && d.balances && d.balances.length > 0) {
+                    jettonWallet = d.balances[0].wallet_address.address;
+                    addLog(`✅ Jetton-кошелек: ${jettonWallet}`);
+                    return parseInt(d.balances[0].balance) / 1e9;
+                }
+                jettonWallet = null;
+                return 0;
+            } catch(e) {
+                addLog(`❌ Ошибка: ${e.message}`);
+                jettonWallet = null;
+                return 0;
+            }
+        }
+
+        async function getRewardPool() {
+            try {
+                const r = await fetch(`https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`);
+                const d = await r.json();
+                if (d && d.balances) {
+                    for (let j of d.balances) {
+                        if (j.jetton?.symbol === "CER") {
+                            return parseInt(j.balance) / 1e9;
+                        }
+                    }
+                }
+                return 0;
+            } catch(e) {
+                return 0;
+            }
+        }
+
+        async function updateData() {
+            if (walletAddress) {
+                userBalance = await getUserJettonWallet(walletAddress);
+                document.getElementById('cer-balance').textContent = userBalance.toFixed(2);
+            }
+            rewardPool = await getRewardPool();
+            const statusSpan = document.getElementById('pool-status-text');
+            if (rewardPool > 0) {
+                statusSpan.innerHTML = '✅ Активен';
+                statusSpan.className = 'status-active';
+            } else {
+                statusSpan.innerHTML = '❌ Неактивен';
+                statusSpan.className = 'status-inactive';
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const days = parseInt(document.getElementById('lock-days').value);
+            const rates = {30: 822, 90: 2466, 180: 4932, 365: 10000};
+            const rate = rates[days];
+            const profit = (amount * rate / 10000).toFixed(2);
+            document.getElementById('profit-display').textContent = profit;
+            const maxByBalance = Math.min(userBalance, rewardPool);
+            document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance.toFixed(2)} CER`;
+            const stakeBtn = document.getElementById('stake-btn');
+            if (amount > maxByBalance || amount <= 0) {
+                document.getElementById('warning').innerHTML = '⚠️ Сумма превышает лимит';
+                stakeBtn.disabled = true;
+            } else {
+                document.getElementById('warning').innerHTML = '';
+                stakeBtn.disabled = false;
+            }
+        }
+
+        async function sendJettonTransaction(comment, amountNano) {
+            addLog(`🚀 Отправка: ${comment}, ${amountNano} nano`);
+            
+            if (!tonConnectUI || !walletAddress) {
+                alert('Кошелек не подключен');
+                return false;
+            }
+            
+            if (!jettonWallet) {
+                alert('Jetton-кошелек не найден');
+                return false;
+            }
+            
+            const rawJettonAddress = toRawAddress(jettonWallet);
+            const rawResponseAddress = toRawAddress(walletAddress);
+            const rawDestination = toRawAddress(STAKING_ADDRESS);
+            
+            addLog(`📤 Jetton адрес: ${rawJettonAddress}`);
+            addLog(`📤 Response адрес: ${rawResponseAddress}`);
+            addLog(`📤 Destination: ${rawDestination}`);
+            
+            // Создаем payload через TonWeb
+            const payload = await createJettonTransferPayload(
+                rawJettonAddress,
+                rawDestination,
+                amountNano,
+                rawResponseAddress,
+                comment
+            );
+            
+            if (!payload) {
+                alert('Ошибка создания payload');
+                return false;
+            }
+            
+            addLog(`📦 Payload (base64): ${payload.substring(0, 50)}...`);
+            
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600,
+                messages: [{
+                    address: rawJettonAddress,
+                    amount: "0",
+                    payload: payload
+                }]
+            };
+            
+            try {
+                const result = await tonConnectUI.sendTransaction(transaction);
+                addLog(`✅ Успешно!`);
+                alert('Транзакция отправлена!');
+                return true;
+            } catch(e) {
+                addLog(`❌ Ошибка: ${e.message}`);
+                alert(`Ошибка: ${e.message}`);
+                return false;
+            }
+        }
+
+        document.getElementById('stake-btn').onclick = async () => {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const days = document.getElementById('lock-days').value;
+            if (!amount || amount <= 0) return alert('Введите сумму');
+            if (amount > Math.min(userBalance, rewardPool)) return alert('Сумма превышает лимит');
+            await sendJettonTransaction(days, Math.floor(amount * 1e9));
+        };
+
+        document.getElementById('unstake-btn').onclick = async () => {
+            await sendJettonTransaction("0", 1);
+        };
+
+        document.getElementById('add-reward').onclick = async () => {
+            const amount = document.getElementById('pool-amount').value;
+            if (amount && parseFloat(amount) > 0) {
+                await sendJettonTransaction("777", Math.floor(parseFloat(amount) * 1e9));
+            } else {
+                alert('Введите сумму');
+            }
+        };
+
+        async function sendTonTransaction(comment) {
+            if (!tonConnectUI || !walletAddress) return alert('Кошелек не подключен');
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600,
+                messages: [{
+                    address: STAKING_ADDRESS,
+                    amount: "50000000",
+                    payload: btoa(comment)
+                }]
+            };
+            try {
+                await tonConnectUI.sendTransaction(transaction);
+                alert('Отправлено!');
+            } catch(e) {
+                alert(`Ошибка: ${e.message}`);
+            }
+        }
+
+        document.getElementById('set-rate30').onclick = () => sendTonTransaction(`rate30:${document.getElementById('rate30').value}`);
+        document.getElementById('set-rate90').onclick = () => sendTonTransaction(`rate90:${document.getElementById('rate90').value}`);
+        document.getElementById('set-rate180').onclick = () => sendTonTransaction(`rate180:${document.getElementById('rate180').value}`);
+        document.getElementById('set-rate365').onclick = () => sendTonTransaction(`rate365:${document.getElementById('rate365').value}`);
+        document.getElementById('withdraw-pool').onclick = () => sendTonTransaction("778");
+        document.getElementById('emergency-withdraw-pool').onclick = () => sendTonTransaction("7777");
+
+        async function init() {
+            addLog('🚀 Инициализация...');
+            
+            // Инициализируем TonWeb
+            if (typeof TonWeb !== 'undefined') {
+                tonweb = new TonWeb();
+                addLog('✅ TonWeb загружен');
+            } else {
+                addLog('⚠️ TonWeb не загружен');
+            }
+            
+            tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+                manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
+                buttonRootId: 'connect-btn'
+            });
+            
+            tonConnectUI.onStatusChange(async (wallet) => {
+                if (wallet) {
+                    walletAddress = wallet.account.address;
+                    addLog(`✅ Кошелек: ${walletAddress}`);
+                    document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
+                    document.getElementById('wallet-address').innerHTML = walletAddress;
+                    await updateData();
+                    document.getElementById('admin-panel').style.display = 'block';
+                } else {
+                    walletAddress = null;
+                    addLog('🔌 Кошелек отключен');
+                    document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
+                    document.getElementById('admin-panel').style.display = 'none';
+                }
+            });
+            await updateData();
+            setInterval(updateData, 30000);
+        }
+
+        document.getElementById('lock-days').addEventListener('change', updateUI);
+        document.getElementById('amount').addEventListener('input', updateUI);
+        init();
+    </script>
+</body>
+</html>
