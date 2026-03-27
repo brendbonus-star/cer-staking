@@ -119,7 +119,7 @@
             word-break: break-all;
         }
     </style>
-    <script src="https://unpkg.com/@ton/ton@13.11.2/dist/index.js"></script>
+    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
@@ -221,17 +221,17 @@
 
         async function waitForTon() {
             let attempts = 0;
-            while (!window.TON_CORE && !window.ton && attempts < 100) {
+            while (!window.ton && !window.TON_CORE && attempts < 100) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
-            }
-            if (window.TON_CORE) {
-                addLog('✅ TON_CORE загружен');
-                return window.TON_CORE;
             }
             if (window.ton) {
                 addLog('✅ window.ton загружен');
                 return window.ton;
+            }
+            if (window.TON_CORE) {
+                addLog('✅ TON_CORE загружен');
+                return window.TON_CORE;
             }
             addLog('❌ Ошибка: библиотека ton не загружена');
             throw new Error('TON library not loaded');
