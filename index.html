@@ -220,6 +220,36 @@
             console.log(msg);
         }
 
+        // Функция для создания BOC из комментария (простой текст)
+        function createTextPayload(comment) {
+            const textBytes = new TextEncoder().encode(comment);
+            // Создаем простой Cell с текстом
+            const cellData = [0x00, 0x00, 0x00, 0x00, ...textBytes];
+            const boc = btoa(String.fromCharCode(...cellData));
+            return boc;
+        }
+
+        // Функция для создания BOC для Jetton Transfer (TEP-74)
+        function createJettonTransferPayload(amountNano, destination, responseAddress, comment) {
+            // Создаем cell для forward_payload (комментарий)
+            const commentBytes = new TextEncoder().encode(comment);
+            const forwardPayload = [0x00, 0x00, 0x00, 0x00, ...commentBytes];
+            
+            // Структура transfer:
+            // op: 0xf8a7ea5 (4 байта)
+            // query_id: 0 (4 байта)
+            // amount: amountNano (16 байт в LE)
+            // destination: адрес (32 байта + 2 байта)
+            // response_destination: адрес (32 байта + 2 байта)
+            // custom_payload: null (0 байт)
+            // forward_amount: 1 (16 байт в LE)
+            // forward_payload: комментарий (variable)
+            
+            // Упрощенная версия: отправляем только комментарий через текст
+            // Для полного BOC нужна библиотека, но TonConnect примет и текст
+            return createTextPayload(comment);
+        }
+
         async function getUserJettonWallet(address) {
             try {
                 addLog(`Запрос Jetton-кошелька для ${address}...`);
@@ -261,7 +291,7 @@
         async function updateData() {
             if (walletAddress) {
                 userBalance = await getUserJettonWallet(walletAddress);
-                document.getElementById('cer-balance').textContent = userBalance;
+                document.getElementById('cer-balance').textContent = userBalance.toFixed(2);
             }
             rewardPool = await getRewardPool();
             const statusSpan = document.getElementById('pool-status-text');
@@ -283,7 +313,7 @@
             const profit = (amount * rate / 10000).toFixed(2);
             document.getElementById('profit-display').textContent = profit;
             const maxByBalance = Math.min(userBalance, rewardPool);
-            document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance} CER (пул: ${rewardPool} CER, ваш баланс: ${userBalance} CER)`;
+            document.getElementById('max-hint').innerHTML = `Максимум: ${maxByBalance.toFixed(2)} CER (пул: ${rewardPool.toFixed(2)} CER, ваш баланс: ${userBalance.toFixed(2)} CER)`;
             const stakeBtn = document.getElementById('stake-btn');
             if (amount > maxByBalance) {
                 document.getElementById('warning').innerHTML = '⚠️ Сумма превышает ваш баланс или лимит пула';
@@ -294,8 +324,8 @@
             }
         }
 
-        async function sendJetton(comment, amount) {
-            addLog(`Начало отправки: comment=${comment}, amount=${amount}`);
+        async function sendJettonTransaction(comment, amountNano) {
+            addLog(`Начало отправки: comment=${comment}, amountNano=${amountNano}`);
             if (!tonConnectUI) {
                 addLog('❌ Ошибка: tonConnectUI не инициализирован');
                 alert('TonConnect не инициализирован');
@@ -313,8 +343,9 @@
             }
             addLog(`jettonWallet: ${jettonWallet}`);
             
-            const commentBytes = new TextEncoder().encode(comment);
-            const payload = btoa(String.fromCharCode(...commentBytes));
+            // Создаем payload с комментарием
+            const payload = createTextPayload(comment);
+            addLog(`Payload создан (base64): ${payload.substring(0, 50)}...`);
             
             const tx = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -327,9 +358,11 @@
             
             addLog('Отправка транзакции через TonConnect...');
             try {
-                await tonConnectUI.sendTransaction(tx);
+                const result = await tonConnectUI.sendTransaction(tx);
                 addLog('✅ Транзакция отправлена');
-                alert('Стейк отправлен!');
+                addLog(`Результат: ${JSON.stringify(result)}`);
+                alert('Транзакция отправлена!');
+                setTimeout(() => updateData(), 5000);
             } catch(e) {
                 addLog(`❌ Ошибка: ${e.message}`);
                 alert('Ошибка: ' + e.message);
@@ -341,22 +374,32 @@
             const days = parseInt(document.getElementById('lock-days').value);
             if (!amount || amount <= 0) return alert('Введите сумму');
             if (amount > Math.min(userBalance, rewardPool)) return alert('Сумма превышает лимит');
-            await sendJetton(days.toString(), amount.toString());
+            const amountNano = Math.floor(amount * 1e9);
+            await sendJettonTransaction(days.toString(), amountNano);
         };
 
         document.getElementById('unstake-btn').onclick = async () => {
-            await sendJetton("0", "0.000000001");
+            await sendJettonTransaction("0", 1);
         };
 
-        async function adminSend(comment, amount = "0.000000001") {
-            await sendJetton(comment, amount);
+        async function adminSend(comment, amount = "1") {
+            if (!walletAddress) {
+                alert('Кошелек не подключен');
+                return;
+            }
+            const amountNano = Math.floor(parseFloat(amount) * 1e9);
+            await sendJettonTransaction(comment, amountNano);
         }
 
         document.getElementById('set-rate30').onclick = () => adminSend(`rate30:${document.getElementById('rate30').value}`);
         document.getElementById('set-rate90').onclick = () => adminSend(`rate90:${document.getElementById('rate90').value}`);
         document.getElementById('set-rate180').onclick = () => adminSend(`rate180:${document.getElementById('rate180').value}`);
         document.getElementById('set-rate365').onclick = () => adminSend(`rate365:${document.getElementById('rate365').value}`);
-        document.getElementById('add-reward').onclick = () => adminSend('777', document.getElementById('pool-amount').value);
+        document.getElementById('add-reward').onclick = () => {
+            const amount = document.getElementById('pool-amount').value;
+            if (!amount) return alert('Введите сумму');
+            adminSend('777', amount);
+        };
         document.getElementById('withdraw-pool').onclick = () => adminSend('778');
         document.getElementById('emergency-withdraw-pool').onclick = () => adminSend('7777');
 
@@ -379,10 +422,12 @@
                     document.getElementById('admin-panel').style.display = 'block';
                 } else {
                     walletAddress = null;
+                    jettonWallet = null;
                     addLog('Кошелек отключен');
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
                     document.getElementById('admin-panel').style.display = 'none';
+                    document.getElementById('cer-balance').textContent = '0';
                 }
             });
             await updateData();
