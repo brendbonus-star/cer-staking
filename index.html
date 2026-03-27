@@ -218,6 +218,11 @@
             console.log(msg);
         }
 
+        // Кодирование комментария в base64
+        function encodeComment(comment) {
+            return btoa(comment);
+        }
+
         async function getUserJettonWallet(address) {
             try {
                 addLog(`Запрос Jetton-кошелька для ${address}...`);
@@ -294,7 +299,6 @@
             }
         }
 
-        // ========== ОТПРАВКА TON (КАК В ПЕРВОМ КОДЕ) ==========
         async function sendTonTransaction(comment, amountTon = "0.05") {
             addLog(`🚀 Отправка TON: comment=${comment}, amount=${amountTon} TON`);
             
@@ -310,12 +314,15 @@
                 return false;
             }
             
+            const payload = encodeComment(comment);
+            addLog(`📦 Payload (base64): ${payload}`);
+            
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [{
                     address: STAKING_ADDRESS,
                     amount: amountTon,
-                    payload: comment
+                    payload: payload
                 }]
             };
             
@@ -333,7 +340,7 @@
             }
         }
 
-        // Стейкинг (отправляем TON с комментарием days)
+        // Стейкинг
         document.getElementById('stake-btn').onclick = async () => {
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
@@ -348,13 +355,13 @@
                 return;
             }
             
-            addLog(`📊 Стейкинг: ${amount} CER на ${days} дней (отправка TON с комментарием ${days})`);
+            addLog(`📊 Стейкинг: ${amount} CER на ${days} дней`);
             await sendTonTransaction(days.toString(), "0.05");
         };
 
         // Unstake
         document.getElementById('unstake-btn').onclick = async () => {
-            addLog(`📤 Запрос на вывод стейка (отправка TON с комментарием 0)`);
+            addLog(`📤 Запрос на вывод стейка`);
             await sendTonTransaction("0", "0.05");
         };
 
