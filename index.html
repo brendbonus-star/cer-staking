@@ -220,14 +220,11 @@
             console.log(msg);
         }
 
+        // Простая конвертация 0:... в EQ...
         function toRawAddress(address) {
             if (!address) return address;
             if (address.startsWith('0:')) {
-                const hexPart = address.slice(2);
-                const firstByte = parseInt(hexPart.slice(0, 2), 16);
-                const tag = firstByte & 0x7F;
-                const prefix = (tag === 0x7F || (tag & 0x01)) ? 'UQ' : 'EQ';
-                return prefix + hexPart;
+                return 'EQ' + address.slice(2);
             }
             return address;
         }
@@ -241,6 +238,8 @@
                 if (d && d.balances && d.balances.length > 0) {
                     jettonWallet = d.balances[0].wallet_address.address;
                     addLog(`✅ Jetton-кошелек: ${jettonWallet}`);
+                    const converted = toRawAddress(jettonWallet);
+                    addLog(`✅ Конвертированный: ${converted}`);
                     return parseInt(d.balances[0].balance) / 1e9;
                 }
                 jettonWallet = null;
@@ -306,7 +305,7 @@
         }
 
         async function sendJettonTransaction(comment, amountNano) {
-            addLog(`🚀 Отправка: ${comment}, ${amountNano}`);
+            addLog(`🚀 Отправка: ${comment}, ${amountNano} nano`);
             
             if (!tonConnectUI || !walletAddress) {
                 alert('Кошелек не подключен');
@@ -319,6 +318,7 @@
             }
             
             const rawAddress = toRawAddress(jettonWallet);
+            addLog(`📤 Адрес для отправки: ${rawAddress}`);
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -363,6 +363,8 @@
             const amount = document.getElementById('pool-amount').value;
             if (amount && parseFloat(amount) > 0) {
                 await sendJettonTransaction("777", Math.floor(parseFloat(amount) * 1e9));
+            } else {
+                alert('Введите сумму');
             }
         };
 
