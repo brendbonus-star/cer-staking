@@ -156,7 +156,7 @@
             <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
         </div>
 
-        <!-- Админ-панель (видна только лидеру) -->
+        <!-- Админ-панель (видна только владельцу контракта) -->
         <div id="admin-panel" class="card admin-panel">
             <h4>⚙️ Админ-панель</h4>
             <div class="rate-row">
@@ -190,8 +190,8 @@
 
     <script>
         // ===== КОНФИГ =====
-        const TRANSIT_WALLET = "UQBB5Ong-uI51srNe1P3Bp0MnnQrvtSJGaWZH8f70fLhDiQj";
-        const LEADER_ADDRESS = "UQAmOJb8WPlCKhj6fyE2xGsvohshFx4xqOiMYWowtHKfeBqS";
+        const STAKING_ADDRESS = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
+        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         const API_URL = window.location.origin; // если сервер на том же домене
 
         let tonConnectUI;
@@ -212,7 +212,7 @@
 
         async function getUserBalanceAndJettonWallet(address) {
             try {
-                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G`;
+                const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 if (data && data.balances && data.balances.length > 0) {
@@ -296,7 +296,7 @@
             body.bits.writeUint(0xf8a7ea5, 32);
             body.bits.writeUint(0, 64);
             body.bits.writeCoins(BigInt(amountInNano));
-            body.bits.writeAddress(TON_CORE.Address.parse(TRANSIT_WALLET));
+            body.bits.writeAddress(TON_CORE.Address.parse(STAKING_ADDRESS));
             body.bits.writeAddress(TON_CORE.Address.parse(walletAddress));
             body.bits.writeBit(0);
             body.bits.writeCoins(50000000n);
@@ -334,9 +334,10 @@
             } catch(e) { alert('Ошибка: ' + e.message); }
         });
 
-        // Админ-функции (только для лидера)
+        // Админ-функции (только для владельца контракта)
         async function adminSend(comment, amount = "0.000000001") {
-            if (walletAddress !== LEADER_ADDRESS) return alert('Только лидер');
+            // Проверка, что подключенный кошелек является владельцем контракта
+            // TODO: получить owner из контракта и сравнить с walletAddress
             try {
                 await sendComment(comment, amount);
                 alert(`Команда "${comment}" отправлена`);
@@ -385,11 +386,8 @@
                     document.getElementById('wallet-address').innerHTML = walletAddress;
                     await updateData();
                     
-                    if (walletAddress === LEADER_ADDRESS) {
-                        document.getElementById('admin-panel').style.display = 'block';
-                    } else {
-                        document.getElementById('admin-panel').style.display = 'none';
-                    }
+                    // Показываем админ-панель (временно для всех, потом нужно будет проверять owner)
+                    document.getElementById('admin-panel').style.display = 'block';
                 } else {
                     walletAddress = null;
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
