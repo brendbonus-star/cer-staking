@@ -119,13 +119,7 @@
             word-break: break-all;
         }
     </style>
-    <script>
-        window.tonReady = false;
-        const tonScript = document.createElement('script');
-        tonScript.src = '/ton.js';
-        tonScript.onload = () => { window.tonReady = true; console.log('ton.js loaded'); };
-        document.head.appendChild(tonScript);
-    </script>
+    <script src="https://unpkg.com/@ton/ton@13.11.2/dist/index.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
@@ -227,16 +221,20 @@
 
         async function waitForTon() {
             let attempts = 0;
-            while (!window.tonReady && attempts < 50) {
+            while (!window.TON_CORE && !window.ton && attempts < 100) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
             }
-            if (!window.tonReady) {
-                addLog('❌ Ошибка: библиотека ton не загружена');
-                throw new Error('TON library not loaded');
+            if (window.TON_CORE) {
+                addLog('✅ TON_CORE загружен');
+                return window.TON_CORE;
             }
-            addLog('✅ ton.js загружен');
-            return window.TON_CORE || window.ton;
+            if (window.ton) {
+                addLog('✅ window.ton загружен');
+                return window.ton;
+            }
+            addLog('❌ Ошибка: библиотека ton не загружена');
+            throw new Error('TON library not loaded');
         }
 
         async function getUserJettonWallet(address) {
@@ -340,13 +338,11 @@
                 const forwardTonAmount = 50000000n;
                 addLog(`amountNano: ${amountNano}, forwardTonAmount: ${forwardTonAmount}`);
                 
-                // Создаем forward payload
                 const forwardPayload = new Ton.Cell();
                 forwardPayload.bits.writeUint(0, 32);
                 forwardPayload.bits.writeString(comment);
                 addLog('Forward payload создан');
                 
-                // Создаем тело Jetton Transfer
                 const body = new Ton.Cell();
                 body.bits.writeUint(0xf8a7ea5, 32);
                 body.bits.writeUint(0, 64);
