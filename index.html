@@ -119,7 +119,13 @@
             word-break: break-all;
         }
     </style>
-    <script src="/ton.js"></script>
+    <script>
+        window.tonReady = false;
+        const tonScript = document.createElement('script');
+        tonScript.src = '/ton.js';
+        tonScript.onload = () => { window.tonReady = true; console.log('ton.js loaded'); };
+        document.head.appendChild(tonScript);
+    </script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
@@ -221,20 +227,16 @@
 
         async function waitForTon() {
             let attempts = 0;
-            while (!window.TON_CORE && !window.ton && attempts < 50) {
+            while (!window.tonReady && attempts < 50) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
             }
-            if (window.TON_CORE) {
-                addLog('✅ TON_CORE загружен');
-                return window.TON_CORE;
-            } else if (window.ton) {
-                addLog('✅ window.ton загружен');
-                return window.ton;
-            } else {
+            if (!window.tonReady) {
                 addLog('❌ Ошибка: библиотека ton не загружена');
                 throw new Error('TON library not loaded');
             }
+            addLog('✅ ton.js загружен');
+            return window.TON_CORE || window.ton;
         }
 
         async function getUserJettonWallet(address) {
