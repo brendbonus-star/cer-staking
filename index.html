@@ -119,7 +119,7 @@
             word-break: break-all;
         }
     </style>
-    <script src="https://unpkg.com/@ton/ton@13.0.0/dist/index.js"></script>
+    <script src="https://unpkg.com/ton-core@0.49.0/dist/index.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
@@ -219,11 +219,8 @@
             console.log(msg);
         }
 
-        // Прямое использование window.ton или window.TON_CORE
         function getTon() {
-            if (window.ton) return window.ton;
-            if (window.TON_CORE) return window.TON_CORE;
-            return null;
+            return window.tonCore || window.ton || window.TON_CORE;
         }
 
         async function waitForTon() {
@@ -434,9 +431,10 @@
             setInterval(updateData, 30000);
         }
 
-        // Проверка после загрузки
         setTimeout(() => {
-            addLog(`Проверка: window.ton = ${window.ton ? 'да' : 'нет'}, window.TON_CORE = ${window.TON_CORE ? 'да' : 'нет'}`);
+            const ton = getTon();
+            addLog(`Проверка: window.tonCore = ${window.tonCore ? 'да' : 'нет'}, window.ton = ${window.ton ? 'да' : 'нет'}, window.TON_CORE = ${window.TON_CORE ? 'да' : 'нет'}`);
+            if (ton) addLog('Ton объект найден');
         }, 1000);
 
         document.getElementById('lock-days').addEventListener('change', updateUI);
