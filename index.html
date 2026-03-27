@@ -105,6 +105,19 @@
             padding: 10px 20px;
             margin: 0;
         }
+        #log-area {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
     <script src="/ton.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
@@ -185,6 +198,7 @@
                 <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
             </div>
         </div>
+        <div id="log-area"></div>
     </div>
 
     <script>
@@ -197,26 +211,48 @@
         let userBalance = 0;
         let rewardPool = 0;
 
-        // Дожидаемся загрузки TON библиотеки
+        function addLog(msg) {
+            const logDiv = document.getElementById('log-area');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
         async function waitForTon() {
-            while (!window.TON_CORE && !window.ton) {
+            let attempts = 0;
+            while (!window.TON_CORE && !window.ton && attempts < 50) {
                 await new Promise(r => setTimeout(r, 200));
+                attempts++;
             }
-            return window.TON_CORE || window.ton;
+            if (window.TON_CORE) {
+                addLog('✅ TON_CORE загружен');
+                return window.TON_CORE;
+            } else if (window.ton) {
+                addLog('✅ window.ton загружен');
+                return window.ton;
+            } else {
+                addLog('❌ Ошибка: библиотека ton не загружена');
+                throw new Error('TON library not loaded');
+            }
         }
 
         async function getUserJettonWallet(address) {
             try {
+                addLog(`Запрос Jetton-кошелька для ${address}...`);
                 const url = `https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`;
                 const r = await fetch(url);
                 const d = await r.json();
                 if (d && d.balances && d.balances.length > 0) {
                     jettonWallet = d.balances[0].wallet_address.address;
+                    addLog(`✅ Jetton-кошелек найден: ${jettonWallet}`);
                     return parseInt(d.balances[0].balance) / 1e9;
                 }
+                addLog(`❌ Jetton-кошелек не найден (нет CER?)`);
                 jettonWallet = null;
                 return 0;
             } catch(e) {
+                addLog(`❌ Ошибка получения Jetton-кошелька: ${e.message}`);
                 jettonWallet = null;
                 return 0;
             }
@@ -276,35 +312,71 @@
         }
 
         async function sendJetton(comment, amount) {
-            const Ton = await waitForTon();
-            const amountNano = Math.floor(parseFloat(amount) * 1e9);
+            addLog(`Начало отправки: comment=${comment}, amount=${amount}`);
+            if (!tonConnectUI) {
+                addLog('❌ Ошибка: tonConnectUI не инициализирован');
+                alert('TonConnect не инициализирован');
+                return;
+            }
+            if (!walletAddress) {
+                addLog('❌ Ошибка: кошелек не подключен');
+                alert('Кошелек не подключен');
+                return;
+            }
+            if (!jettonWallet) {
+                addLog('❌ Ошибка: jettonWallet не найден');
+                alert('Jetton-кошелек не найден. Убедитесь, что у вас есть CER в кошельке.');
+                return;
+            }
+            addLog(`jettonWallet: ${jettonWallet}`);
             
-            // Создаем forward payload
-            const forwardPayload = new Ton.Cell();
-            forwardPayload.bits.writeUint(0, 32);
-            forwardPayload.bits.writeString(comment);
-            
-            // Тело Jetton Transfer
-            const body = new Ton.Cell();
-            body.bits.writeUint(0xf8a7ea5, 32);
-            body.bits.writeUint(0, 64);
-            body.bits.writeCoins(BigInt(amountNano));
-            body.bits.writeAddress(Ton.Address.parse(STAKING_ADDRESS));
-            body.bits.writeAddress(Ton.Address.parse(walletAddress));
-            body.bits.writeBit(0);
-            body.bits.writeCoins(50000000n);
-            body.bits.writeBit(1);
-            body.bits.writeRef(forwardPayload);
-            
-            const tx = {
-                validUntil: Math.floor(Date.now() / 1000) + 600,
-                messages: [{
-                    address: jettonWallet,
-                    amount: "50000000",
-                    payload: body.toBoc().toString("base64")
-                }]
-            };
-            await tonConnectUI.sendTransaction(tx);
+            try {
+                const Ton = await waitForTon();
+                addLog('Ton библиотека получена');
+                
+                const amountNano = BigInt(Math.floor(parseFloat(amount) * 1e9));
+                const forwardTonAmount = 50000000n;
+                addLog(`amountNano: ${amountNano}, forwardTonAmount: ${forwardTonAmount}`);
+                
+                // Создаем forward payload
+                const forwardPayload = new Ton.Cell();
+                forwardPayload.bits.writeUint(0, 32);
+                forwardPayload.bits.writeString(comment);
+                addLog('Forward payload создан');
+                
+                // Создаем тело Jetton Transfer
+                const body = new Ton.Cell();
+                body.bits.writeUint(0xf8a7ea5, 32);
+                body.bits.writeUint(0, 64);
+                body.bits.writeCoins(amountNano);
+                body.bits.writeAddress(Ton.Address.parse(STAKING_ADDRESS));
+                body.bits.writeAddress(Ton.Address.parse(walletAddress));
+                body.bits.writeBit(0);
+                body.bits.writeCoins(forwardTonAmount);
+                body.bits.writeBit(1);
+                body.bits.writeRef(forwardPayload);
+                addLog('Тело транзакции создано');
+                
+                const payloadBase64 = body.toBoc().toString("base64");
+                addLog(`Payload base64 длина: ${payloadBase64.length}`);
+                
+                const tx = {
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{
+                        address: jettonWallet,
+                        amount: "50000000",
+                        payload: payloadBase64
+                    }]
+                };
+                
+                addLog('Отправка транзакции через TonConnect...');
+                await tonConnectUI.sendTransaction(tx);
+                addLog('✅ Транзакция отправлена');
+                alert('Стейк отправлен!');
+            } catch(e) {
+                addLog(`❌ Ошибка: ${e.message}`);
+                alert('Ошибка: ' + e.message);
+            }
         }
 
         document.getElementById('stake-btn').onclick = async () => {
@@ -312,27 +384,15 @@
             const days = parseInt(document.getElementById('lock-days').value);
             if (!amount || amount <= 0) return alert('Введите сумму');
             if (amount > Math.min(userBalance, rewardPool)) return alert('Сумма превышает лимит');
-            if (!jettonWallet) return alert('Jetton-кошелек не найден');
-            try {
-                await sendJetton(days.toString(), amount.toString());
-                alert('Стейк отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
+            await sendJetton(days.toString(), amount.toString());
         };
 
         document.getElementById('unstake-btn').onclick = async () => {
-            if (!jettonWallet) return alert('Jetton-кошелек не найден');
-            try {
-                await sendJetton("0", "0.000000001");
-                alert('Запрос на вывод отправлен!');
-            } catch(e) { alert('Ошибка: ' + e.message); }
+            await sendJetton("0", "0.000000001");
         };
 
         async function adminSend(comment, amount = "0.000000001") {
-            if (!jettonWallet) return alert('Jetton-кошелек не найден');
-            try {
-                await sendJetton(comment, amount);
-                alert(`Команда "${comment}" отправлена`);
-            } catch(e) { alert('Ошибка: ' + e.message); }
+            await sendJetton(comment, amount);
         }
 
         document.getElementById('set-rate30').onclick = () => adminSend(`rate30:${document.getElementById('rate30').value}`);
@@ -344,19 +404,25 @@
         document.getElementById('emergency-withdraw-pool').onclick = () => adminSend('7777');
 
         async function init() {
+            addLog('Инициализация TonConnect...');
             tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
                 buttonRootId: 'connect-btn'
             });
+            await tonConnectUI.ready;
+            addLog('TonConnect готов');
+            
             tonConnectUI.onStatusChange(async (wallet) => {
                 if (wallet) {
                     walletAddress = wallet.account.address;
+                    addLog(`Кошелек подключен: ${walletAddress}`);
                     document.getElementById('wallet-status').innerHTML = '✅ Кошелек подключен';
                     document.getElementById('wallet-address').innerHTML = walletAddress;
                     await updateData();
                     document.getElementById('admin-panel').style.display = 'block';
                 } else {
                     walletAddress = null;
+                    addLog('Кошелек отключен');
                     document.getElementById('wallet-status').innerHTML = '⚡ Кошелек не подключен';
                     document.getElementById('wallet-address').innerHTML = '';
                     document.getElementById('admin-panel').style.display = 'none';
