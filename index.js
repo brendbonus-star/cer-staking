@@ -1,6 +1,6 @@
-const express = require('express');
-const cors = require('cors');
-const TonWeb = require('tonweb');
+import express from 'express';
+import cors from 'cors';
+import { Address, Cell, beginCell } from '@ton/ton';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,7 +8,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Эндпоинт для создания JettonTransfer payload
+// Конвертация адреса из 0:... в EQ формат
+function toRawAddress(address) {
+    if (!address) return address;
+    if (address.startsWith('0:')) {
+        return 'EQ' + address.slice(2);
+    }
+    return address;
+}
+
+// Создание JettonTransfer payload через @ton/ton
 app.post('/create-payload', async (req, res) => {
     try {
         const { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
@@ -16,30 +25,32 @@ app.post('/create-payload', async (req, res) => {
         console.log('📥 Получен запрос:', { jettonWallet, destination, amountNano, responseAddress, comment });
         
         // Парсим адреса
-        const jettonWalletAddr = new TonWeb.Address(jettonWallet);
-        const destAddr = new TonWeb.Address(destination);
-        const responseAddr = new TonWeb.Address(responseAddress);
+        const jettonWalletAddr = Address.parse(toRawAddress(jettonWallet));
+        const destAddr = Address.parse(toRawAddress(destination));
+        const responseAddr = Address.parse(toRawAddress(responseAddress));
         
-        // Создаём тело перевода
-        const transferBody = new TonWeb.boc.Cell();
-        transferBody.bits.writeUint(0xf8a7ea5, 32); // op transfer
-        transferBody.bits.writeUint(0, 64); // query_id
-        transferBody.bits.writeCoins(amountNano); // amount
-        transferBody.bits.writeAddress(destAddr); // destination
-        transferBody.bits.writeAddress(responseAddr); // response_destination
-        transferBody.bits.writeBit(0); // custom_payload null
-        transferBody.bits.writeCoins(1); // forward_amount
+        // Создаём комментарий в отдельной ячейке
+        const commentCell = beginCell()
+            .storeUint(0, 32)
+            .storeStringTail(comment)
+            .endCell();
         
-        // Добавляем комментарий
-        const commentCell = new TonWeb.boc.Cell();
-        commentCell.bits.writeUint(0, 32);
-        commentCell.bits.writeString(comment);
-        transferBody.bits.writeBit(1);
-        transferBody.bits.writeRef(commentCell);
+        // Создаём тело перевода (transfer) с op 0xf8a7ea5
+        const transferBody = beginCell()
+            .storeUint(0xf8a7ea5, 32)      // op: transfer
+            .storeUint(0, 64)              // query_id: 0
+            .storeCoins(BigInt(amountNano)) // amount в нано
+            .storeAddress(destAddr)        // destination
+            .storeAddress(responseAddr)     // response_destination
+            .storeBit(0)                   // custom_payload: null
+            .storeCoins(1)                 // forward_amount: 1 нано (минимально для комментария)
+            .storeBit(1)                   // forward_payload присутствует
+            .storeRef(commentCell)         // ссылка на ячейку с комментарием
+            .endCell();
         
         // Кодируем в base64
         const boc = transferBody.toBoc();
-        const payload = TonWeb.utils.bytesToBase64(boc);
+        const payload = boc.toString('base64');
         
         console.log('✅ Payload создан, длина:', payload.length);
         
