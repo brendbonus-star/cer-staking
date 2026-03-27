@@ -330,12 +330,14 @@
                     payload: {
                         type: "JettonTransfer",
                         amount: amountNano.toString(),
-                        destination: rawDestination,
-                        responseDestination: rawResponseAddress,
+                        destination: { type: "Address", address: rawDestination },
+                        responseDestination: { type: "Address", address: rawResponseAddress },
                         forwardPayload: comment
                     }
                 }]
             };
+            
+            addLog(`📨 Transaction: ${JSON.stringify(transaction)}`);
             
             try {
                 const result = await tonConnectUI.sendTransaction(transaction);
