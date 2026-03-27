@@ -122,88 +122,18 @@
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.skypack.dev/@ton/core"></script>
-</head>
-<body>
-    <div class="container">
-        <h1>💰 CER STAKING</h1>
-        <div class="subtitle">до 100% годовых</div>
-
-        <div class="card">
-            <div class="pool-status">
-                <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
-            <div id="connect-btn"></div>
-            <div id="wallet-address" class="wallet-info"></div>
-        </div>
-
-        <div class="card">
-            <div id="user-balance" class="user-balance">
-                💎 Ваш баланс CER: <span id="cer-balance">0</span>
-            </div>
-            <div class="stake-info">
-                <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
-                <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
-                <div class="stake-row"><span class="label">🔓 Разблокировка:</span><span id="unlock-date" class="value">—</span></div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>💸 Новый стейк</h3>
-            <input type="number" id="amount" placeholder="Сумма CER" value="100">
-            <select id="lock-days">
-                <option value="30">30 дней — 8.22% годовых</option>
-                <option value="90">90 дней — 24.66% годовых</option>
-                <option value="180">180 дней — 49.32% годовых</option>
-                <option value="365">365 дней — 100% годовых</option>
-            </select>
-            <div id="max-hint" class="max-hint"></div>
-            <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
-            <div id="warning" class="warning"></div>
-            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
-        </div>
-
-        <div class="card">
-            <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
-        </div>
-
-        <div id="admin-panel" class="card admin-panel">
-            <h4>⚙️ Админ-панель</h4>
-            <div class="rate-row">
-                <input type="number" id="rate30" placeholder="Ставка 30 дней (10000 = 100%)">
-                <button id="set-rate30" class="btn-admin">Изменить 30 дней</button>
-            </div>
-            <div class="rate-row">
-                <input type="number" id="rate90" placeholder="Ставка 90 дней">
-                <button id="set-rate90" class="btn-admin">Изменить 90 дней</button>
-            </div>
-            <div class="rate-row">
-                <input type="number" id="rate180" placeholder="Ставка 180 дней">
-                <button id="set-rate180" class="btn-admin">Изменить 180 дней</button>
-            </div>
-            <div class="rate-row">
-                <input type="number" id="rate365" placeholder="Ставка 365 дней">
-                <button id="set-rate365" class="btn-admin">Изменить 365 дней</button>
-            </div>
-            <div class="rate-row">
-                <input type="number" id="pool-amount" placeholder="Сумма CER для пула">
-                <button id="add-reward" class="btn-admin">💰 Пополнить пул</button>
-            </div>
-            <div class="rate-row">
-                <button id="withdraw-pool" class="btn-admin">📤 Вывести пул (778)</button>
-            </div>
-            <div class="rate-row">
-                <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
-            </div>
-        </div>
-        <div id="log-area"></div>
-    </div>
-
-    <script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@ton/core": "https://esm.sh/@ton/core@0.63.1"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as tonCore from '@ton/core';
+        
+        window.tonCore = tonCore;
+        
         const STAKING_ADDRESS = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
         const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
         
@@ -221,7 +151,6 @@
             console.log(msg);
         }
 
-        // Правильное формирование payload с использованием @ton/core
         function encodeTextPayload(text) {
             try {
                 const cell = new tonCore.Cell();
@@ -355,7 +284,6 @@
             }
         }
 
-        // Стейкинг
         document.getElementById('stake-btn').onclick = async () => {
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
@@ -374,13 +302,11 @@
             await sendTonTransaction(days.toString(), "0.05");
         };
 
-        // Unstake
         document.getElementById('unstake-btn').onclick = async () => {
             addLog(`📤 Запрос на вывод стейка`);
             await sendTonTransaction("0", "0.05");
         };
 
-        // Административные команды
         document.getElementById('set-rate30').onclick = async () => {
             const rate = document.getElementById('rate30').value;
             if (rate) await sendTonTransaction(`rate30:${rate}`, "0.05");
