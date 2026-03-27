@@ -218,25 +218,6 @@
             console.log(msg);
         }
 
-        // Конвертация адреса из 0:... в EQ/UQ формат
-        function toRawAddress(address) {
-            if (!address) return address;
-            if (address.startsWith('0:')) {
-                const hexPart = address.slice(2);
-                const firstByte = parseInt(hexPart.slice(0, 2), 16);
-                const tag = firstByte & 0x7F;
-                const prefix = (tag === 0x7F || (tag & 0x01)) ? 'UQ' : 'EQ';
-                return prefix + hexPart;
-            }
-            return address;
-        }
-
-        // Кодирование комментария в base64
-        function encodeComment(comment) {
-            const commentBytes = new TextEncoder().encode(comment);
-            return btoa(String.fromCharCode(...commentBytes));
-        }
-
         async function getUserJettonWallet(address) {
             try {
                 addLog(`Запрос Jetton-кошелька для ${address}...`);
@@ -258,7 +239,6 @@
             }
         }
 
-        // ПУЛ — РАБОТАЕТ КАК РАНЬШЕ
         async function getRewardPool() {
             try {
                 const url = `https://tonapi.io/v2/accounts/${STAKING_ADDRESS}/jettons`;
@@ -314,30 +294,36 @@
             }
         }
 
-        // Отправка TON транзакции с комментарием (для теста)
-        async function sendTonTest(comment, amountTon = "0.05") {
-            addLog(`🚀 Тест TON: comment=${comment}, amount=${amountTon} TON`);
+        // ========== ОТПРАВКА TON (КАК В ПЕРВОМ КОДЕ) ==========
+        async function sendTonTransaction(comment, amountTon = "0.05") {
+            addLog(`🚀 Отправка TON: comment=${comment}, amount=${amountTon} TON`);
             
-            if (!tonConnectUI || !walletAddress) {
-                alert('Кошелек не подключен');
+            if (!tonConnectUI) {
+                addLog('❌ Ошибка: tonConnectUI не инициализирован');
+                alert('TonConnect не инициализирован');
                 return false;
             }
             
-            const amountNano = (parseFloat(amountTon) * 1e9).toString();
-            const payload = encodeComment(comment);
+            if (!walletAddress) {
+                addLog('❌ Ошибка: кошелек не подключен');
+                alert('Кошелек не подключен');
+                return false;
+            }
             
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [{
                     address: STAKING_ADDRESS,
-                    amount: amountNano,
-                    payload: payload
+                    amount: amountTon,
+                    payload: comment
                 }]
             };
             
+            addLog(`📨 Отправка TON транзакции...`);
+            
             try {
                 const result = await tonConnectUI.sendTransaction(transaction);
-                addLog(`✅ TON транзакция отправлена!`);
+                addLog(`✅ Транзакция отправлена!`);
                 alert('Транзакция отправлена!');
                 return true;
             } catch(e) {
@@ -347,7 +333,7 @@
             }
         }
 
-        // Стейкинг (пока тестовый TON)
+        // Стейкинг (отправляем TON с комментарием days)
         document.getElementById('stake-btn').onclick = async () => {
             const amount = parseFloat(document.getElementById('amount').value);
             const days = parseInt(document.getElementById('lock-days').value);
@@ -362,45 +348,43 @@
                 return;
             }
             
-            addLog(`📊 Стейкинг: ${amount} CER на ${days} дней (тестовая TON транзакция)`);
-            await sendTonTest(days.toString(), "0.05");
+            addLog(`📊 Стейкинг: ${amount} CER на ${days} дней (отправка TON с комментарием ${days})`);
+            await sendTonTransaction(days.toString(), "0.05");
         };
 
         // Unstake
         document.getElementById('unstake-btn').onclick = async () => {
-            addLog(`📤 Запрос на вывод стейка (тестовая TON транзакция)`);
-            await sendTonTest("0", "0.05");
+            addLog(`📤 Запрос на вывод стейка (отправка TON с комментарием 0)`);
+            await sendTonTransaction("0", "0.05");
         };
 
         // Административные команды
+        document.getElementById('set-rate30').onclick = async () => {
+            const rate = document.getElementById('rate30').value;
+            if (rate) await sendTonTransaction(`rate30:${rate}`, "0.05");
+        };
+        document.getElementById('set-rate90').onclick = async () => {
+            const rate = document.getElementById('rate90').value;
+            if (rate) await sendTonTransaction(`rate90:${rate}`, "0.05");
+        };
+        document.getElementById('set-rate180').onclick = async () => {
+            const rate = document.getElementById('rate180').value;
+            if (rate) await sendTonTransaction(`rate180:${rate}`, "0.05");
+        };
+        document.getElementById('set-rate365').onclick = async () => {
+            const rate = document.getElementById('rate365').value;
+            if (rate) await sendTonTransaction(`rate365:${rate}`, "0.05");
+        };
         document.getElementById('add-reward').onclick = async () => {
             const amount = document.getElementById('pool-amount').value;
             if (amount && parseFloat(amount) > 0) {
-                addLog(`💰 Пополнение пула: ${amount} CER (тестовая TON транзакция)`);
-                await sendTonTest("777", "0.05");
+                await sendTonTransaction("777", "0.05");
             } else {
                 alert('Введите сумму для пополнения пула');
             }
         };
-        
-        document.getElementById('set-rate30').onclick = async () => {
-            const rate = document.getElementById('rate30').value;
-            if (rate) await sendTonTest(`rate30:${rate}`, "0.05");
-        };
-        document.getElementById('set-rate90').onclick = async () => {
-            const rate = document.getElementById('rate90').value;
-            if (rate) await sendTonTest(`rate90:${rate}`, "0.05");
-        };
-        document.getElementById('set-rate180').onclick = async () => {
-            const rate = document.getElementById('rate180').value;
-            if (rate) await sendTonTest(`rate180:${rate}`, "0.05");
-        };
-        document.getElementById('set-rate365').onclick = async () => {
-            const rate = document.getElementById('rate365').value;
-            if (rate) await sendTonTest(`rate365:${rate}`, "0.05");
-        };
-        document.getElementById('withdraw-pool').onclick = async () => await sendTonTest("778", "0.05");
-        document.getElementById('emergency-withdraw-pool').onclick = async () => await sendTonTest("7777", "0.05");
+        document.getElementById('withdraw-pool').onclick = async () => await sendTonTransaction("778", "0.05");
+        document.getElementById('emergency-withdraw-pool').onclick = async () => await sendTonTransaction("7777", "0.05");
 
         async function init() {
             addLog('🚀 Инициализация TonConnect...');
