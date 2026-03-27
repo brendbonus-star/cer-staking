@@ -122,6 +122,7 @@
         }
     </style>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdn.skypack.dev/@ton/core"></script>
 </head>
 <body>
     <div class="container">
@@ -220,14 +221,18 @@
             console.log(msg);
         }
 
-        // Правильное формирование payload для TON транзакции с комментарием
+        // Правильное формирование payload с использованием @ton/core
         function encodeTextPayload(text) {
-            // Создаем cell с текстовым комментарием
-            // Формат: 0x00 + текст (как в TON)
-            const textBytes = new TextEncoder().encode(text);
-            const cellData = [0x00, ...textBytes];
-            // Преобразуем в base64
-            return btoa(String.fromCharCode(...cellData));
+            try {
+                const cell = new tonCore.Cell();
+                cell.bits.writeUint(0, 32);
+                cell.bits.writeString(text);
+                const boc = tonCore.Cell.toBoc(cell);
+                return btoa(String.fromCharCode(...new Uint8Array(boc)));
+            } catch(e) {
+                addLog(`Ошибка кодирования: ${e.message}`);
+                return btoa(text);
+            }
         }
 
         async function getUserJettonWallet(address) {
