@@ -8,311 +8,199 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #ffffff;
             padding: 20px;
+            min-height: 100vh;
         }
-        .container {
-            background: rgba(255,255,255,0.95);
+        .container { max-width: 500px; margin: 0 auto; }
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
             border-radius: 28px;
             padding: 24px;
-            max-width: 400px;
-            width: 100%;
-            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        h1 { font-size: 28px; margin-bottom: 8px; color: #333; }
-        .sub { color: #666; margin-bottom: 24px; font-size: 14px; }
-        .balance-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 24px;
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
             text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, #a0a0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .balance-label { font-size: 14px; opacity: 0.9; margin-bottom: 8px; }
-        .balance-value { font-size: 36px; font-weight: bold; }
-        .pool-info {
-            background: #f5f5f5;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-        }
-        .pool-item { text-align: center; }
-        .pool-label { font-size: 12px; color: #666; }
-        .pool-value { font-size: 18px; font-weight: bold; color: #333; }
-        input, select {
-            width: 100%;
-            padding: 14px;
-            margin-bottom: 16px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            font-size: 16px;
-            outline: none;
-        }
-        input:focus, select:focus { border-color: #667eea; }
+        .subtitle { text-align: center; opacity: 0.6; font-size: 14px; margin-bottom: 24px; }
+        .pool-status { text-align: center; margin-bottom: 20px; }
+        .status-active { color: #00ff88; font-weight: 600; display: inline-block; background: rgba(0, 255, 136, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-inactive { color: #ff4444; font-weight: 600; display: inline-block; background: rgba(255, 68, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-loading { color: #ffaa44; font-weight: 600; display: inline-block; background: rgba(255, 170, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
         button {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            margin: 10px 0;
+            border-radius: 20px;
             border: none;
-            border-radius: 12px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s;
         }
         button:active { transform: scale(0.98); }
-        button:disabled {
-            opacity: 0.6;
-            transform: none;
-        }
-        .connect-btn {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            margin-bottom: 16px;
-        }
-        .error { color: #e74c3c; font-size: 12px; margin-top: 8px; text-align: center; }
-        .success { color: #27ae60; font-size: 12px; margin-top: 8px; text-align: center; }
-        .period-buttons {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        .period-btn {
-            flex: 1;
-            padding: 12px;
-            background: #f0f0f0;
-            color: #333;
-            margin-bottom: 0;
-        }
-        .period-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-admin { background: linear-gradient(135deg, #aa8800, #886600); color: white; }
+        input, select {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
             color: white;
+            font-size: 16px;
         }
-        .rate-info {
-            font-size: 12px;
-            color: #666;
+        .wallet-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 12px; margin-top: 10px; font-size: 12px; word-break: break-all; }
+        .stake-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
+        .stake-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .label { opacity: 0.6; }
+        .value { font-weight: 600; }
+        .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
+        .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
+        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
+        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
+        .user-balance {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 15px;
             text-align: center;
-            margin-top: 16px;
+        }
+        .user-balance span {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .admin-panel {
+            display: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .admin-panel h4 {
+            margin-bottom: 15px;
+            color: #ffaa44;
+        }
+        .rate-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .rate-row input {
+            flex: 1;
+            margin: 0;
+        }
+        .rate-row button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
+        }
+        #log-area {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
     </style>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script type="module" src="assets/index-C17tmS2t.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🔥 CER Staking</h1>
-        <div class="sub">Зарабатывайте до 100% годовых</div>
-        
-        <div class="balance-card">
-            <div class="balance-label">Ваш баланс CER</div>
-            <div class="balance-value" id="cerBalance">—</div>
-        </div>
-        
-        <div class="pool-info">
-            <div class="pool-item">
-                <div class="pool-label">Пул наград</div>
-                <div class="pool-value" id="rewardPool">—</div>
-            </div>
-            <div class="pool-item">
-                <div class="pool-label">Всего застейкано</div>
-                <div class="pool-value" id="totalStaked">—</div>
-            </div>
-        </div>
-        
-        <div id="walletInfo" style="display: none;">
-            <div class="period-buttons" id="periodButtons">
-                <button class="period-btn" data-days="30">30 дн<br><span id="rate30">—</span></button>
-                <button class="period-btn" data-days="90">90 дн<br><span id="rate90">—</span></button>
-                <button class="period-btn" data-days="180">180 дн<br><span id="rate180">—</span></button>
-                <button class="period-btn" data-days="365">365 дн<br><span id="rate365">—</span></button>
-            </div>
-            
-            <input type="number" id="stakeAmount" placeholder="Сумма стейка в CER" step="0.01">
-            
-            <button id="stakeBtn">📈 Стейк</button>
-            <div class="rate-info" id="rateInfo"></div>
-        </div>
-        
-        <button id="connectBtn" class="connect-btn">🔌 Подключить кошелёк</button>
-        <div id="status" class="error"></div>
-    </div>
+        <h1>💰 CER STAKING</h1>
+        <div class="subtitle">до 100% годовых</div>
 
-    <script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
-    <script>
-        // Конфигурация
-        const STAKING_CONTRACT = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
-        const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-        const API_URL = "https://cer-staking-legkiy.amvera.io";
-        
-        let tonConnect;
-        let walletAddress = null;
-        let selectedPeriod = 30;
-        let rates = { rate30: 0, rate90: 0, rate180: 0, rate365: 0 };
-        
-        // Инициализация
-        tonConnect = new TonConnectSDK.TonConnect({
-            manifestUrl: window.location.origin + "/tonconnect-manifest.json"
-        });
-        
-        // Получение данных с контракта
-        async function fetchContractData() {
-            try {
-                const response = await fetch(`${API_URL}/contract-data`);
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('rewardPool').innerText = formatNumber(data.rewardPool);
-                    document.getElementById('totalStaked').innerText = formatNumber(data.totalStaked);
-                    rates = {
-                        rate30: data.rate30 / 100,
-                        rate90: data.rate90 / 100,
-                        rate180: data.rate180 / 100,
-                        rate365: data.rate365 / 100
-                    };
-                    document.getElementById('rate30').innerText = rates.rate30 + '%';
-                    document.getElementById('rate90').innerText = rates.rate90 + '%';
-                    document.getElementById('rate180').innerText = rates.rate180 + '%';
-                    document.getElementById('rate365').innerText = rates.rate365 + '%';
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки данных:', e);
-            }
-        }
-        
-        function formatNumber(num) {
-            if (!num) return '0';
-            return (num / 1000000000).toFixed(2) + ' CER';
-        }
-        
-        // Получение баланса CER
-        async function fetchCerBalance(address) {
-            try {
-                const response = await fetch(`${API_URL}/balance/${address}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('cerBalance').innerText = formatNumber(data.balance);
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки баланса:', e);
-            }
-        }
-        
-        // Стейкинг
-        async function createStake(amount, period) {
-            try {
-                const amountNano = (amount * 1000000000).toString();
-                const comment = period.toString();
-                
-                const response = await fetch(`${API_URL}/create-payload`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        amountNano: amountNano,
-                        comment: comment
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (!data.success) {
-                    throw new Error(data.error);
-                }
-                
-                const transaction = {
-                    validUntil: Date.now() + 5 * 60 * 1000,
-                    messages: [{
-                        address: STAKING_CONTRACT,
-                        amount: amountNano,
-                        payload: data.payload
-                    }]
-                };
-                
-                const result = await tonConnect.sendTransaction(transaction);
-                document.getElementById('status').className = 'success';
-                document.getElementById('status').innerText = '✅ Стейк успешно создан!';
-                setTimeout(() => {
-                    document.getElementById('status').innerText = '';
-                }, 3000);
-                return result;
-                
-            } catch (error) {
-                console.error('Ошибка стейкинга:', error);
-                document.getElementById('status').className = 'error';
-                document.getElementById('status').innerText = '❌ Ошибка: ' + error.message;
-                throw error;
-            }
-        }
-        
-        // Подключение кошелька
-        document.getElementById('connectBtn').onclick = async () => {
-            try {
-                const wallets = await tonConnect.getWallets();
-                if (wallets.length === 0) {
-                    alert('Установите кошелёк (Tonkeeper, Wallet)');
-                    return;
-                }
-                const wallet = await tonConnect.connect();
-                walletAddress = wallet.account.address;
-                document.getElementById('connectBtn').style.display = 'none';
-                document.getElementById('walletInfo').style.display = 'block';
-                fetchCerBalance(walletAddress);
-                document.getElementById('status').innerText = '✅ Кошелёк подключен';
-                setTimeout(() => {
-                    document.getElementById('status').innerText = '';
-                }, 2000);
-            } catch (e) {
-                console.error(e);
-                document.getElementById('status').innerText = '❌ Ошибка подключения';
-            }
-        };
-        
-        // Выбор периода
-        document.querySelectorAll('.period-btn').forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedPeriod = parseInt(btn.dataset.days);
-                let rate;
-                switch(selectedPeriod) {
-                    case 30: rate = rates.rate30; break;
-                    case 90: rate = rates.rate90; break;
-                    case 180: rate = rates.rate180; break;
-                    case 365: rate = rates.rate365; break;
-                }
-                document.getElementById('rateInfo').innerHTML = `Доходность: ${rate}% годовых`;
-            };
-        });
-        
-        // Кнопка стейка
-        document.getElementById('stakeBtn').onclick = async () => {
-            const amount = parseFloat(document.getElementById('stakeAmount').value);
-            if (!amount || amount <= 0) {
-                alert('Введите сумму стейка');
-                return;
-            }
-            document.getElementById('stakeBtn').disabled = true;
-            document.getElementById('stakeBtn').innerText = '⏳ Отправка...';
-            await createStake(amount, selectedPeriod);
-            document.getElementById('stakeBtn').disabled = false;
-            document.getElementById('stakeBtn').innerText = '📈 Стейк';
-            fetchCerBalance(walletAddress);
-            fetchContractData();
-        };
-        
-        // Загрузка данных
-        fetchContractData();
-        
-        // Автообновление каждые 10 секунд
-        setInterval(() => {
-            if (walletAddress) fetchCerBalance(walletAddress);
-            fetchContractData();
-        }, 10000);
-    </script>
+        <div class="card">
+            <div class="pool-status">
+                <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
+            <div id="connect-btn"></div>
+            <div id="wallet-address" class="wallet-info"></div>
+        </div>
+
+        <div class="card">
+            <div id="user-balance" class="user-balance">
+                💎 Ваш баланс CER: <span id="cer-balance">0</span>
+            </div>
+            <div class="stake-info">
+                <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">🔓 Разблокировка:</span><span id="unlock-date" class="value">—</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>💸 Новый стейк</h3>
+            <input type="number" id="amount" placeholder="Сумма CER" value="100">
+            <select id="lock-days">
+                <option value="30">30 дней — 8.22% годовых</option>
+                <option value="90">90 дней — 24.66% годовых</option>
+                <option value="180">180 дней — 49.32% годовых</option>
+                <option value="365">365 дней — 100% годовых</option>
+            </select>
+            <div id="max-hint" class="max-hint"></div>
+            <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
+            <div id="warning" class="warning"></div>
+            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
+        </div>
+
+        <div class="card">
+            <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
+        </div>
+
+        <div id="admin-panel" class="card admin-panel">
+            <h4>⚙️ Админ-панель</h4>
+            <div class="rate-row">
+                <input type="number" id="rate30" placeholder="Ставка 30 дней (10000 = 100%)">
+                <button id="set-rate30" class="btn-admin">Изменить 30 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate90" placeholder="Ставка 90 дней">
+                <button id="set-rate90" class="btn-admin">Изменить 90 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate180" placeholder="Ставка 180 дней">
+                <button id="set-rate180" class="btn-admin">Изменить 180 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate365" placeholder="Ставка 365 дней">
+                <button id="set-rate365" class="btn-admin">Изменить 365 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="pool-amount" placeholder="Сумма CER для пула">
+                <button id="add-reward" class="btn-admin">💰 Пополнить пул</button>
+            </div>
+            <div class="rate-row">
+                <button id="withdraw-pool" class="btn-admin">📤 Вывести пул (778)</button>
+            </div>
+            <div class="rate-row">
+                <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
+            </div>
+        </div>
+        <div id="log-area"></div>
+    </div>
 </body>
 </html>
