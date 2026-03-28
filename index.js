@@ -3,7 +3,7 @@ import cors from 'cors';
 import { Address, beginCell } from '@ton/ton';
 
 const app = express();
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -26,12 +26,13 @@ app.get('/ping', (req, res) => {
 
 app.post('/create-payload', async (req, res) => {
     try {
-        const { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
+        let { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
         
         console.log('📥 Получен запрос:', { jettonWallet, destination, amountNano, responseAddress, comment });
         
-        const destAddr = Address.parse(toRawAddress(destination));
-        const responseAddr = Address.parse(toRawAddress(responseAddress));
+        // Если адрес уже в формате EQ/UQ, оставляем как есть, иначе конвертируем
+        const destAddr = Address.parse(destination);
+        const responseAddr = Address.parse(responseAddress);
         
         const commentCell = beginCell()
             .storeUint(0, 32)
