@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CER Staking</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, #a0a0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { text-align: center; opacity: 0.6; font-size: 14px; margin-bottom: 24px; }
+        .pool-status { text-align: center; margin-bottom: 20px; }
+        .status-active { color: #00ff88; font-weight: 600; display: inline-block; background: rgba(0, 255, 136, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-inactive { color: #ff4444; font-weight: 600; display: inline-block; background: rgba(255, 68, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        .status-loading { color: #ffaa44; font-weight: 600; display: inline-block; background: rgba(255, 170, 68, 0.1); padding: 8px 20px; border-radius: 40px; }
+        button {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background: linear-gradient(135deg, #0088cc, #0066aa); color: white; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-admin { background: linear-gradient(135deg, #aa8800, #886600); color: white; }
+        input, select {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 16px;
+        }
+        .wallet-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 12px; margin-top: 10px; font-size: 12px; word-break: break-all; }
+        .stake-info { background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
+        .stake-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .label { opacity: 0.6; }
+        .value { font-weight: 600; }
+        .profit { background: rgba(0, 255, 136, 0.1); padding: 12px; border-radius: 16px; text-align: center; margin: 10px 0; }
+        .profit-value { font-size: 18px; font-weight: bold; color: #00ff88; }
+        .max-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: right; margin-top: -5px; margin-bottom: 10px; }
+        .warning { color: #ffaa44; font-size: 12px; text-align: center; margin-top: 5px; }
+        .user-balance {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .user-balance span {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .admin-panel {
+            display: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .admin-panel h4 {
+            margin-bottom: 15px;
+            color: #ffaa44;
+        }
+        .rate-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .rate-row input {
+            flex: 1;
+            margin: 0;
+        }
+        .rate-row button {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
+        }
+        #log-area {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+  <script type="module" crossorigin src="/assets/index-D40QWSl5.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 CER STAKING</h1>
+        <div class="subtitle">до 100% годовых</div>
+
+        <div class="card">
+            <div class="pool-status">
+                <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="wallet-status" style="text-align: center; margin-bottom: 10px;">⚡ Кошелек не подключен</div>
+            <div id="connect-btn"></div>
+            <div id="wallet-address" class="wallet-info"></div>
+        </div>
+
+        <div class="card">
+            <div id="user-balance" class="user-balance">
+                💎 Ваш баланс CER: <span id="cer-balance">0</span>
+            </div>
+            <div class="stake-info">
+                <div class="stake-row"><span class="label">💎 Мой стейк:</span><span id="my-stake" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">📈 Накоплено:</span><span id="my-reward" class="value">0 CER</span></div>
+                <div class="stake-row"><span class="label">🔓 Разблокировка:</span><span id="unlock-date" class="value">—</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>💸 Новый стейк</h3>
+            <input type="number" id="amount" placeholder="Сумма CER" value="100">
+            <select id="lock-days">
+                <option value="30">30 дней — 8.22% годовых</option>
+                <option value="90">90 дней — 24.66% годовых</option>
+                <option value="180">180 дней — 49.32% годовых</option>
+                <option value="365">365 дней — 100% годовых</option>
+            </select>
+            <div id="max-hint" class="max-hint"></div>
+            <div class="profit">Доход: <span id="profit-display" class="profit-value">0</span> CER</div>
+            <div id="warning" class="warning"></div>
+            <button id="stake-btn" class="btn-primary">🚀 Стейкать</button>
+        </div>
+
+        <div class="card">
+            <button id="unstake-btn" class="btn-primary">📤 Забрать стейк</button>
+        </div>
+
+        <div id="admin-panel" class="card admin-panel">
+            <h4>⚙️ Админ-панель</h4>
+            <div class="rate-row">
+                <input type="number" id="rate30" placeholder="Ставка 30 дней (10000 = 100%)">
+                <button id="set-rate30" class="btn-admin">Изменить 30 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate90" placeholder="Ставка 90 дней">
+                <button id="set-rate90" class="btn-admin">Изменить 90 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate180" placeholder="Ставка 180 дней">
+                <button id="set-rate180" class="btn-admin">Изменить 180 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="rate365" placeholder="Ставка 365 дней">
+                <button id="set-rate365" class="btn-admin">Изменить 365 дней</button>
+            </div>
+            <div class="rate-row">
+                <input type="number" id="pool-amount" placeholder="Сумма CER для пула">
+                <button id="add-reward" class="btn-admin">💰 Пополнить пул</button>
+            </div>
+            <div class="rate-row">
+                <button id="withdraw-pool" class="btn-admin">📤 Вывести пул (778)</button>
+            </div>
+            <div class="rate-row">
+                <button id="emergency-withdraw-pool" class="btn-admin">⚠️ Аварийный вывод пула (7777)</button>
+            </div>
+        </div>
+        <div id="log-area"></div>
+    </div>
+
+
+</body>
+</html>
