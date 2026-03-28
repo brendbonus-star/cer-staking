@@ -8,14 +8,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-function toRawAddress(address) {
-    if (!address) return address;
-    if (address.startsWith('0:')) {
-        return 'EQ' + address.slice(2);
-    }
-    return address;
-}
-
 app.get('/', (req, res) => {
     res.send('CER Staking Backend is running');
 });
@@ -26,11 +18,11 @@ app.get('/ping', (req, res) => {
 
 app.post('/create-payload', async (req, res) => {
     try {
-        let { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
+        const { jettonWallet, destination, amountNano, responseAddress, comment } = req.body;
         
         console.log('📥 Получен запрос:', { jettonWallet, destination, amountNano, responseAddress, comment });
         
-        // Если адрес уже в формате EQ/UQ, оставляем как есть, иначе конвертируем
+        // Парсим адреса напрямую (они уже в формате EQ/UQ)
         const destAddr = Address.parse(destination);
         const responseAddr = Address.parse(responseAddress);
         
