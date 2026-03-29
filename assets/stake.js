@@ -25,7 +25,7 @@ function log(msg) {
 function toUserFriendly(raw) {
     if (!raw) return null;
     if (raw.startsWith('0:')) {
-        return 'UQ' + raw.slice(2);
+        return 'EQ' + raw.slice(2);  // EQ, а не UQ
     }
     return raw;
 }
