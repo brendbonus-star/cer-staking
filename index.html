@@ -121,17 +121,29 @@
             word-break: break-all;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@3.4.1/dist/tonconnect-sdk.min.js"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "@ton/appkit": "https://unpkg.com/@ton/appkit@0.0.1-alpha.5/dist/index.mjs",
-                "@ton/core": "https://unpkg.com/@ton/core@0.56.0/dist/index.mjs",
-                "@ton/crypto": "https://unpkg.com/@ton/crypto@3.3.0/dist/index.mjs"
+    <script type="module">
+        import { AppKit, TonConnectConnector, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.1-alpha.5';
+        
+        const kit = new AppKit({
+            networks: [Network.mainnet()],
+            connectors: [new TonConnectConnector()],
+            apiKey: 'd72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb'
+        });
+        
+        window.stakeCer = async (amount, period) => {
+            try {
+                await transferJetton(kit, {
+                    recipientAddress: 'EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk',
+                    amount: amount.toString(),
+                    jettonMaster: 'EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G',
+                    comment: period.toString()
+                });
+                alert('Транзакция отправлена');
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
             }
-        }
+        };
     </script>
-   <script type="module" src="assets/index-DfBQ4O_U.js"></script>
 </head>
 <body>
     <div class="container">
@@ -211,5 +223,97 @@
         </div>
         <div id="log-area"></div>
     </div>
+
+    <script>
+        const stakingContract = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
+        const jettonMaster = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+        const apiUrl = "https://cer-staking-legkiy.amvera.io";
+        
+        let tonConnect;
+        let walletAddress;
+        let userJettonWallet;
+        let selectedPeriod = 30;
+        
+        function log(msg) {
+            const logArea = document.getElementById("log-area");
+            const time = new Date().toLocaleTimeString();
+            logArea.innerHTML += `<div>[${time}] ${msg}</div>`;
+            logArea.scrollTop = logArea.scrollHeight;
+            console.log(msg);
+        }
+        
+        async function getJettonWallet(address) {
+            try {
+                const response = await fetch(`${apiUrl}/jetton-wallet/${address}`);
+                const data = await response.json();
+                return data.wallet;
+            } catch (error) {
+                log("Ошибка получения jettonWallet: " + error.message);
+                return null;
+            }
+        }
+        
+        async function getBalance() {
+            if (!walletAddress) return;
+            try {
+                const response = await fetch(`${apiUrl}/balance/${walletAddress}`);
+                const data = await response.json();
+                document.getElementById("cer-balance").innerText = (data.balance / 1e9).toFixed(2);
+            } catch (error) {
+                log("Ошибка баланса: " + error.message);
+            }
+        }
+        
+        async function getContractData() {
+            try {
+                const response = await fetch(`${apiUrl}/contract-data`);
+                const data = await response.json();
+                document.getElementById("rewardPool").innerText = (data.rewardPool / 1e9).toFixed(2);
+                document.getElementById("totalStaked").innerText = (data.totalStaked / 1e9).toFixed(2);
+                document.getElementById("rate30").innerText = (data.rate30 / 100).toFixed(2) + "%";
+                document.getElementById("rate90").innerText = (data.rate90 / 100).toFixed(2) + "%";
+                document.getElementById("rate180").innerText = (data.rate180 / 100).toFixed(2) + "%";
+                document.getElementById("rate365").innerText = (data.rate365 / 100).toFixed(2) + "%";
+            } catch (error) {
+                log("Ошибка загрузки данных: " + error.message);
+            }
+        }
+        
+        document.getElementById("stake-btn").onclick = async () => {
+            const amount = parseFloat(document.getElementById("amount").value);
+            const period = document.getElementById("lock-days").value;
+            if (!amount || amount <= 0) {
+                alert("Введите сумму");
+                return;
+            }
+            log(`Стейкинг ${amount} CER на ${period} дней`);
+            if (typeof window.stakeCer === 'function') {
+                await window.stakeCer(amount, period);
+            } else {
+                log("Ошибка: функция stakeCer не загружена");
+            }
+        };
+        
+        document.getElementById("unstake-btn").onclick = async () => {
+            log("unstake - требуется реализация");
+        };
+        
+        document.getElementById("add-reward").onclick = async () => {
+            const amount = document.getElementById("pool-amount").value;
+            log(`add-reward ${amount} - требуется реализация`);
+        };
+        
+        document.getElementById("set-rate30").onclick = () => log("set-rate30");
+        document.getElementById("set-rate90").onclick = () => log("set-rate90");
+        document.getElementById("set-rate180").onclick = () => log("set-rate180");
+        document.getElementById("set-rate365").onclick = () => log("set-rate365");
+        document.getElementById("withdraw-pool").onclick = () => log("withdraw-pool");
+        document.getElementById("emergency-withdraw-pool").onclick = () => log("emergency-withdraw-pool");
+        
+        getContractData();
+        setInterval(getContractData, 30000);
+        
+        log("Приложение загружено");
+    </script>
 </body>
 </html>
