@@ -1,9 +1,16 @@
-import { AppKit, Network, transferJetton, getBalance } from 'https://unpkg.com/@ton/appkit@0.0.1-alpha.5/dist/index.mjs';
+import { AppKit, Network, transferJetton } from 'https://unpkg.com/@ton/appkit@0.0.1-alpha.5/dist/index.mjs';
 
 const appKit = new AppKit({
     network: Network.mainnet(),
-    apiKey: 'ваш-ключ-от-toncenter'
+    apiKey: 'd72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb'
 });
+
+let connector = null;
+
+export async function initAppKit() {
+    connector = await appKit.connectors.init();
+    return connector;
+}
 
 export async function stakeCer(userAddress, amount, period) {
     const result = await transferJetton(appKit, {
