@@ -1,7 +1,7 @@
 {
-    "url": "https://brendbonus-star.github.io/cer-staking",
-    "name": "CER Staking",
-    "iconUrl": "https://brendbonus-star.github.io/cer-staking/icon.png",
-    "termsOfUseUrl": "",
-    "privacyPolicyUrl": ""
+  "url": "https://brendbonus-star.github.io/cer-staking/",
+  "name": "CER Staking",
+  "iconUrl": "https://brendbonus-star.github.io/cer-staking/icon.png",
+  "termsOfUseUrl": "https://brendbonus-star.github.io/cer-staking/terms",
+  "privacyPolicyUrl": "https://brendbonus-star.github.io/cer-staking/privacy"
 }
