@@ -1,1 +1,179 @@
-(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const n of document.querySelectorAll('link[rel="modulepreload"]'))o(n);new MutationObserver(n=>{for(const a of n)if(a.type==="childList")for(const c of a.addedNodes)c.tagName==="LINK"&&c.rel==="modulepreload"&&o(c)}).observe(document,{childList:!0,subtree:!0});function s(n){const a={};return n.integrity&&(a.integrity=n.integrity),n.referrerPolicy&&(a.referrerPolicy=n.referrerPolicy),n.crossOrigin==="use-credentials"?a.credentials="include":n.crossOrigin==="anonymous"?a.credentials="omit":a.credentials="same-origin",a}function o(n){if(n.ep)return;n.ep=!0;const a=s(n);fetch(n.href,a)}})();const p="EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk",B="EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G",h="https://cer-staking-legkiy.amvera.io/create-payload";let d,l=null,i=null,m=0,y=0;function r(e){const t=document.getElementById("log-area"),s=new Date().toLocaleTimeString();t.innerHTML+=`<div>[${s}] ${e}</div>`,t.scrollTop=t.scrollHeight,console.log(e)}function toUserFriendlyRaw(raw){if(!raw)return null;if(raw.startsWith('0:')){return 'UQ'+raw.slice(2)}return raw}async function b(e){try{r("Запрос Jetton-кошелька...");const t=`https://tonapi.io/v2/accounts/${e}/jettons?jetton_master=${B}`,o=await(await fetch(t)).json();return o&&o.balances&&o.balances.length>0?(i=o.balances[0].wallet_address.address,r(`✅ Jetton-кошелек: ${i}`),parseInt(o.balances[0].balance)/1e9):(i=null,0)}catch(t){return r(`❌ Ошибка: ${t.message}`),i=null,0}}async function v(){var e;try{const s=await(await fetch(`https://tonapi.io/v2/accounts/${p}/jettons`)).json();if(s&&s.balances){for(let o of s.balances)if(((e=o.jetton)==null?void 0:e.symbol)==="CER")return parseInt(o.balance)/1e9}return 0}catch{return 0}}async function g(){l&&(m=await b(l),document.getElementById("cer-balance").textContent=m.toFixed(2)),y=await v();const e=document.getElementById("pool-status-text");y>0?(e.innerHTML="✅ Активен",e.className="status-active"):(e.innerHTML="❌ Неактивен",e.className="status-inactive"),E()}function E(){const e=parseFloat(document.getElementById("amount").value)||0,t=parseInt(document.getElementById("lock-days").value),o={30:822,90:2466,180:4932,365:1e4}[t],n=(e*o/1e4).toFixed(2);document.getElementById("profit-display").textContent=n;const a=Math.min(m,y);document.getElementById("max-hint").innerHTML=`Максимум: ${a.toFixed(2)} CER`;const c=document.getElementById("stake-btn");e>a||e<=0?(document.getElementById("warning").innerHTML="⚠️ Сумма превышает лимит",c.disabled=!0):(document.getElementById("warning").innerHTML="",c.disabled=!1)}async function I(e,t){if(r(`🚀 Отправка: ${e}, ${t} nano`),!d||!l)return alert("Кошелек не подключен"),!1;if(!i)return alert("Jetton-кошелек не найден"),!1;const s=toUserFriendlyRaw(i),o=toUserFriendlyRaw(l),n=p;r(`📤 Jetton адрес: ${s}`),r(`📤 Response адрес: ${o}`),r(`📤 Destination: ${n}`);const requestBody={amountNano:t.toString(),comment:e,destination:n,responseAddress:o};r(`📤 Отправляю на сервер: ${JSON.stringify(requestBody)}`);try{const c=await(await fetch(h,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(requestBody)})).json();if(!c.success)throw new Error(c.error);const w={validUntil:Math.floor(Date.now()/1e3)+300,messages:[{address:s,amount:"10000000",payload:c.payload}]};const L=await d.sendTransaction(w);return r("✅ Успешно!"),alert("Транзакция отправлена!"),!0}catch(a){return r(`❌ Ошибка: ${a.message}`),alert(`Ошибка: ${a.message}`),!1}}document.getElementById("stake-btn").onclick=async()=>{const e=parseFloat(document.getElementById("amount").value),t=document.getElementById("lock-days").value;if(!e||e<=0)return alert("Введите сумму");if(e>Math.min(m,y))return alert("Сумма превышает лимит");await I(t,Math.floor(e*1e9))};document.getElementById("unstake-btn").onclick=async()=>{await I("0",1)};document.getElementById("add-reward").onclick=async()=>{const e=document.getElementById("pool-amount").value;e&&parseFloat(e)>0?await I("777",Math.floor(parseFloat(e)*1e9)):alert("Введите сумму")};async function u(e){if(!d||!l)return alert("Кошелек не подключен");const t={validUntil:Math.floor(Date.now()/1e3)+300,messages:[{address:p,amount:"50000000",payload:btoa(e)}]};try{await d.sendTransaction(t),alert("Отправлено!")}catch(s){alert(`Ошибка: ${s.message}`)}}document.getElementById("set-rate30").onclick=()=>u(`rate30:${document.getElementById("rate30").value}`);document.getElementById("set-rate90").onclick=()=>u(`rate90:${document.getElementById("rate90").value}`);document.getElementById("set-rate180").onclick=()=>u(`rate180:${document.getElementById("rate180").value}`);document.getElementById("set-rate365").onclick=()=>u(`rate365:${document.getElementById("rate365").value}`);document.getElementById("withdraw-pool").onclick=()=>u("778");document.getElementById("emergency-withdraw-pool").onclick=()=>u("7777");async function T(){r("🚀 Инициализация..."),d=new TON_CONNECT_UI.TonConnectUI({manifestUrl:"https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json",buttonRootId:"connect-btn"}),d.onStatusChange(async e=>{e?(l=e.account.address,r(`✅ Кошелек: ${l}`),document.getElementById("wallet-status").innerHTML="✅ Кошелек подключен",document.getElementById("wallet-address").innerHTML=l,await g(),document.getElementById("admin-panel").style.display="block"):(l=null,r("🔌 Кошелек отключен"),document.getElementById("wallet-status").innerHTML="⚡ Кошелек не подключен",document.getElementById("admin-panel").style.display="none")}),await g(),setInterval(g,3e4)}document.getElementById("lock-days").addEventListener("change",E);document.getElementById("amount").addEventListener("input",E);T();
+(async function() {
+    const stakingContractRaw = "0:c285726deb46e15632e6044eb11b164a609be426b07617b08600db288c5fa563";
+    const stakingContractUserFriendly = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
+    const jettonMaster = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+    const apiUrl = "https://cer-staking-legkiy.amvera.io";
+    
+    let tonConnect;
+    let walletAddress;
+    let userJettonWallet;
+    let selectedPeriod = 30;
+    
+    function toUserFriendly(raw) {
+        if (!raw) return null;
+        if (raw.startsWith('0:')) {
+            return 'UQ' + raw.slice(2);
+        }
+        return raw;
+    }
+    
+    async function getJettonWallet(address) {
+        try {
+            const response = await fetch(`${apiUrl}/jetton-wallet/${address}`);
+            const data = await response.json();
+            return data.wallet;
+        } catch (error) {
+            console.error("Ошибка получения jettonWallet:", error);
+            return null;
+        }
+    }
+    
+    async function getContractData() {
+        try {
+            const response = await fetch(`${apiUrl}/contract-data`);
+            const data = await response.json();
+            document.getElementById("rewardPool").innerText = formatAmount(data.rewardPool);
+            document.getElementById("totalStaked").innerText = formatAmount(data.totalStaked);
+            document.getElementById("rate30").innerText = (data.rate30 / 100).toFixed(2) + "%";
+            document.getElementById("rate90").innerText = (data.rate90 / 100).toFixed(2) + "%";
+            document.getElementById("rate180").innerText = (data.rate180 / 100).toFixed(2) + "%";
+            document.getElementById("rate365").innerText = (data.rate365 / 100).toFixed(2) + "%";
+            return data;
+        } catch (error) {
+            console.error("Ошибка загрузки данных:", error);
+        }
+    }
+    
+    function formatAmount(amount) {
+        if (!amount) return "0 CER";
+        return (amount / 1e9).toFixed(2) + " CER";
+    }
+    
+    async function getBalance(address) {
+        try {
+            const response = await fetch(`${apiUrl}/balance/${address}`);
+            const data = await response.json();
+            document.getElementById("cerBalance").innerText = formatAmount(data.balance);
+            return data.balance;
+        } catch (error) {
+            console.error("Ошибка загрузки баланса:", error);
+        }
+    }
+    
+    async function createStake(amount, period) {
+        try {
+            const amountNano = (amount * 1e9).toString();
+            const comment = period.toString();
+            
+            const response = await fetch(`${apiUrl}/create-payload`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    amountNano: amountNano,
+                    comment: comment,
+                    destination: stakingContractUserFriendly,
+                    responseAddress: toUserFriendly(walletAddress)
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error);
+            }
+            
+            const jettonWalletAddress = toUserFriendly(userJettonWallet);
+            
+            const transaction = {
+                validUntil: Date.now() + 5 * 60 * 1000,
+                messages: [{
+                    address: jettonWalletAddress,
+                    amount: "0",
+                    payload: data.payload
+                }]
+            };
+            
+            const result = await tonConnect.sendTransaction(transaction);
+            console.log("Транзакция отправлена:", result);
+            return result;
+            
+        } catch (error) {
+            console.error("Ошибка стейкинга:", error);
+            throw error;
+        }
+    }
+    
+    tonConnect = new TonConnect({
+        manifestUrl: window.location.origin + "/tonconnect-manifest.json"
+    });
+    
+    document.getElementById("connectBtn").onclick = async () => {
+        try {
+            const wallets = await tonConnect.getWallets();
+            if (wallets.length === 0) {
+                alert("Установите кошелёк (Tonkeeper, Wallet)");
+                return;
+            }
+            
+            const wallet = await tonConnect.connect();
+            walletAddress = wallet.account.address;
+            userJettonWallet = await getJettonWallet(walletAddress);
+            
+            document.getElementById("connectBtn").style.display = "none";
+            document.getElementById("walletInfo").style.display = "block";
+            
+            await getBalance(walletAddress);
+            document.getElementById("status").innerText = "✅ Кошелёк подключён";
+            setTimeout(() => {
+                document.getElementById("status").innerText = "";
+            }, 2000);
+        } catch (error) {
+            console.error(error);
+            document.getElementById("status").innerText = "❌ Ошибка подключения";
+        }
+    };
+    
+    document.querySelectorAll(".period-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            selectedPeriod = parseInt(btn.dataset.days);
+        };
+    });
+    
+    document.getElementById("stakeBtn").onclick = async () => {
+        const amount = parseFloat(document.getElementById("stakeAmount").value);
+        if (!amount || amount <= 0) {
+            alert("Введите сумму стейка");
+            return;
+        }
+        
+        document.getElementById("stakeBtn").disabled = true;
+        document.getElementById("stakeBtn").innerText = "⏳ Отправка...";
+        
+        try {
+            await createStake(amount, selectedPeriod);
+            document.getElementById("status").className = "success";
+            document.getElementById("status").innerText = "✅ Стейк успешно создан!";
+            await getBalance(walletAddress);
+            await getContractData();
+        } catch (error) {
+            document.getElementById("status").className = "error";
+            document.getElementById("status").innerText = "❌ Ошибка: " + error.message;
+        } finally {
+            document.getElementById("stakeBtn").disabled = false;
+            document.getElementById("stakeBtn").innerText = "📈 Стейк";
+            setTimeout(() => {
+                document.getElementById("status").innerText = "";
+            }, 3000);
+        }
+    };
+    
+    getContractData();
+    setInterval(() => {
+        if (walletAddress) getBalance(walletAddress);
+        getContractData();
+    }, 10000);
+})();
