@@ -105,9 +105,9 @@
         }
     }
     
-    tonConnect = new TonConnect({
-        manifestUrl: window.location.origin + "/tonconnect-manifest.json"
-    });
+    // Инициализация TonConnect (новая версия)
+    const connector = new TonConnect();
+    tonConnect = connector;
     
     document.getElementById("connectBtn").onclick = async () => {
         try {
