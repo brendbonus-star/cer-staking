@@ -121,8 +121,17 @@
             word-break: break-all;
         }
     </style>
-    <script src="assets/tonconnect-sdk.min.js"></script>
-<script src="assets/index-C17tmS2t.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@3.4.1/dist/tonconnect-sdk.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@ton/appkit": "https://unpkg.com/@ton/appkit@0.0.1-alpha.5/dist/index.mjs",
+                "@ton/core": "https://unpkg.com/@ton/core@0.56.0/dist/index.mjs",
+                "@ton/crypto": "https://unpkg.com/@ton/crypto@3.3.0/dist/index.mjs"
+            }
+        }
+    </script>
+    <script type="module" src="assets/appkit.js"></script>
 </head>
 <body>
     <div class="container">
