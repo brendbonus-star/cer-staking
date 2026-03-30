@@ -107,7 +107,7 @@ function calculateProfit() {
     }
 }
 
-// Стейкинг
+// Стейкинг (исправленная отправка)
 async function stake(amount, period) {
     if (!tonConnectUI || !tonConnectUI.connected) {
         alert("Подключите кошелёк");
