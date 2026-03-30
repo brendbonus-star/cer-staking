@@ -82,46 +82,6 @@
             font-weight: bold;
             font-size: 18px;
         }
-        .pool-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-        }
-        .pool-item {
-            text-align: center;
-            flex: 1;
-        }
-        .pool-label {
-            font-size: 12px;
-            opacity: 0.6;
-        }
-        .pool-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #00ff88;
-        }
-        .rates {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            gap: 8px;
-        }
-        .rate-item {
-            text-align: center;
-            flex: 1;
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 8px;
-        }
-        .rate-days {
-            font-size: 12px;
-            opacity: 0.6;
-        }
-        .rate-value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #ffaa44;
-        }
         .admin-panel {
             display: none;
             border-top: 1px solid rgba(255,255,255,0.2);
@@ -161,8 +121,8 @@
             word-break: break-all;
         }
     </style>
-    <script src="https://unpkg.com/@tonconnect/ui@2.4.1/dist/tonconnect-ui.min.js"></script>
-    <script src="assets/stake.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script type="module" src="assets/index-C17tmS2t.js"></script>
 </head>
 <body>
     <div class="container">
@@ -172,34 +132,6 @@
         <div class="card">
             <div class="pool-status">
                 <span id="pool-status-text" class="status-loading">⏳ Загрузка...</span>
-            </div>
-            <div class="pool-info">
-                <div class="pool-item">
-                    <div class="pool-label">💰 Пул наград</div>
-                    <div class="pool-value" id="rewardPool">—</div>
-                </div>
-                <div class="pool-item">
-                    <div class="pool-label">📊 Всего застейкано</div>
-                    <div class="pool-value" id="totalStaked">—</div>
-                </div>
-            </div>
-            <div class="rates">
-                <div class="rate-item">
-                    <div class="rate-days">30 дней</div>
-                    <div class="rate-value" id="rate30">—</div>
-                </div>
-                <div class="rate-item">
-                    <div class="rate-days">90 дней</div>
-                    <div class="rate-value" id="rate90">—</div>
-                </div>
-                <div class="rate-item">
-                    <div class="rate-days">180 дней</div>
-                    <div class="rate-value" id="rate180">—</div>
-                </div>
-                <div class="rate-item">
-                    <div class="rate-days">365 дней</div>
-                    <div class="rate-value" id="rate365">—</div>
-                </div>
             </div>
         </div>
 
