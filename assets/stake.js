@@ -1,9 +1,8 @@
-import { AppKit, Network, TonConnectConnector, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.4';
-
 const STAKING_ADDRESS = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
 const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
+const SERVER_URL = "https://cer-staking-legkiy.amvera.io/create-payload";
 
-let appKit;
+let tonConnectUI;
 let walletAddress = null;
 let jettonWallet = null;
 let userBalance = 0;
@@ -15,6 +14,12 @@ function addLog(msg) {
     logDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
     logDiv.scrollTop = logDiv.scrollHeight;
     console.log(msg);
+}
+
+function toRawAddress(address) {
+    if (!address) return address;
+    if (address.startsWith('0:')) return 'EQ' + address.slice(2);
+    return address;
 }
 
 async function getUserJettonWallet(address) {
@@ -93,7 +98,7 @@ function updateUI() {
 async function sendJettonTransaction(comment, amountNano) {
     addLog(`🚀 Отправка: ${comment}, ${amountNano} nano`);
     
-    if (!appKit || !walletAddress) {
+    if (!tonConnectUI || !walletAddress) {
         alert('Кошелек не подключен');
         return false;
     }
@@ -103,15 +108,40 @@ async function sendJettonTransaction(comment, amountNano) {
         return false;
     }
     
+    const rawJettonAddress = toRawAddress(jettonWallet);
+    const rawResponseAddress = toRawAddress(walletAddress);
+    const rawDestination = toRawAddress(STAKING_ADDRESS);
+    
+    addLog(`📤 Jetton адрес: ${rawJettonAddress}`);
+    addLog(`📤 Response адрес: ${rawResponseAddress}`);
+    addLog(`📤 Destination: ${rawDestination}`);
+    
     try {
-        const result = await transferJetton(appKit, {
-            from: walletAddress,
-            to: STAKING_ADDRESS,
-            amount: amountNano,
-            jettonMaster: JETTON_MASTER,
-            comment: comment
+        const response = await fetch(SERVER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jettonWallet: rawJettonAddress,
+                destination: rawDestination,
+                amountNano: amountNano.toString(),
+                responseAddress: rawResponseAddress,
+                comment: comment
+            })
         });
         
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+        
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 600,
+            messages: [{
+                address: rawJettonAddress,
+                amount: "0",
+                payload: data.payload
+            }]
+        };
+        
+        await tonConnectUI.sendTransaction(transaction);
         addLog(`✅ Успешно!`);
         alert('Транзакция отправлена!');
         return true;
@@ -144,15 +174,17 @@ document.getElementById('add-reward').onclick = async () => {
 };
 
 async function sendTonTransaction(comment) {
-    if (!appKit || !walletAddress) return alert('Кошелек не подключен');
-    try {
-        await transferJetton(appKit, {
-            from: walletAddress,
-            to: STAKING_ADDRESS,
+    if (!tonConnectUI || !walletAddress) return alert('Кошелек не подключен');
+    const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [{
+            address: STAKING_ADDRESS,
             amount: "50000000",
-            jettonMaster: JETTON_MASTER,
-            comment: comment
-        });
+            payload: btoa(comment)
+        }]
+    };
+    try {
+        await tonConnectUI.sendTransaction(transaction);
         alert('Отправлено!');
     } catch(e) {
         alert(`Ошибка: ${e.message}`);
@@ -167,28 +199,13 @@ document.getElementById('withdraw-pool').onclick = () => sendTonTransaction("778
 document.getElementById('emergency-withdraw-pool').onclick = () => sendTonTransaction("7777");
 
 async function init() {
-    addLog('🚀 Инициализация AppKit...');
-    
-    appKit = new AppKit({
-        networks: {
-            [Network.mainnet().chainId]: {
-                apiClient: {
-                    url: 'https://toncenter.com',
-                    key: 'd72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb'
-                }
-            }
-        },
-        connectors: [
-            new TonConnectConnector({
-                tonConnectOptions: {
-                    manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json'
-                }
-            })
-        ]
+    addLog('🚀 Инициализация...');
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: 'https://raw.githubusercontent.com/brendbonus-star/cer-staking/main/tonconnect-manifest.json',
+        buttonRootId: 'connect-btn'
     });
     
-    const connector = appKit.connectors[0];
-    connector.onStatusChange(async (wallet) => {
+    tonConnectUI.onStatusChange(async (wallet) => {
         if (wallet) {
             walletAddress = wallet.account.address;
             addLog(`✅ Кошелек: ${walletAddress}`);
@@ -203,7 +220,6 @@ async function init() {
             document.getElementById('admin-panel').style.display = 'none';
         }
     });
-    
     await updateData();
     setInterval(updateData, 30000);
 }
