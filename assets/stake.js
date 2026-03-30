@@ -1,6 +1,6 @@
 // Импорт AppKit
 import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
-import { AppKit, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.1-alpha.5';
+import { AppKit, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.4';
 
 // Контракты
 const STAKING_CONTRACT = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
