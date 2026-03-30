@@ -199,40 +199,52 @@ function initTonConnect() {
     });
 }
 
-// Обработчики
-document.getElementById("stake-btn").onclick = async () => {
-    const amount = parseFloat(document.getElementById("amount").value);
-    const period = document.getElementById("lock-days").value;
-    if (!amount || amount <= 0) {
-        alert("Введите сумму");
-        return;
-    }
-    if (amount > cerBalance) {
-        alert("Недостаточно CER");
-        return;
-    }
-    await stake(amount, period);
-};
+// Обработчики (с проверкой существования элементов)
+const stakeBtn = document.getElementById("stake-btn");
+if (stakeBtn) {
+    stakeBtn.onclick = async () => {
+        const amount = parseFloat(document.getElementById("amount").value);
+        const period = document.getElementById("lock-days").value;
+        if (!amount || amount <= 0) {
+            alert("Введите сумму");
+            return;
+        }
+        if (amount > cerBalance) {
+            alert("Недостаточно CER");
+            return;
+        }
+        await stake(amount, period);
+    };
+}
 
-document.getElementById("unstake-btn").onclick = async () => {
-    if (!tonConnectUI || !tonConnectUI.connected) {
-        alert("Подключите кошелёк");
-        return;
-    }
-    alert("Функция unstake в разработке");
-};
+const unstakeBtn = document.getElementById("unstake-btn");
+if (unstakeBtn) {
+    unstakeBtn.onclick = async () => {
+        if (!tonConnectUI || !tonConnectUI.connected) {
+            alert("Подключите кошелёк");
+            return;
+        }
+        alert("Функция unstake в разработке");
+    };
+}
 
-document.getElementById("add-reward").onclick = async () => {
-    const amount = parseFloat(document.getElementById("pool-amount").value);
-    if (!amount || amount <= 0) {
-        alert("Введите сумму");
-        return;
-    }
-    alert("Функция пополнения пула в разработке");
-};
+const addRewardBtn = document.getElementById("add-reward");
+if (addRewardBtn) {
+    addRewardBtn.onclick = async () => {
+        const amount = parseFloat(document.getElementById("pool-amount").value);
+        if (!amount || amount <= 0) {
+            alert("Введите сумму");
+            return;
+        }
+        alert("Функция пополнения пула в разработке");
+    };
+}
 
-document.getElementById("amount").addEventListener("input", calculateProfit);
-document.getElementById("lock-days").addEventListener("change", calculateProfit);
+const amountInput = document.getElementById("amount");
+if (amountInput) amountInput.addEventListener("input", calculateProfit);
+
+const lockDaysSelect = document.getElementById("lock-days");
+if (lockDaysSelect) lockDaysSelect.addEventListener("change", calculateProfit);
 
 // Запуск
 initTonConnect();
