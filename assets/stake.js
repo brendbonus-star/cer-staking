@@ -4,7 +4,7 @@ let tonConnectUI;
 // Контракты
 const STAKING_CONTRACT = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
 const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
-const PROXY_SERVER = "https://cer-staking-legkiy.amvera.io";
+const PROXY_SERVER = "https://cerstaking.bothost.tech";
 
 // Состояние
 let walletAddress = null;
@@ -21,11 +21,11 @@ function log(msg) {
     console.log(msg);
 }
 
-// Конвертация raw → user-friendly (non-bounceable для кошельков)
+// Конвертация raw → user-friendly (bounceable для Jetton-кошелька)
 function toUserFriendly(raw) {
     if (!raw) return null;
     if (raw.startsWith('0:')) {
-        return 'EQ' + raw.slice(2);  // EQ, а не UQ
+        return 'EQ' + raw.slice(2);
     }
     return raw;
 }
@@ -109,35 +109,26 @@ function calculateProfit() {
     }
 }
 
-// Стейкинг
+// Стейкинг через AppKit (новый метод)
 async function stake(amount, period) {
     if (!tonConnectUI || !tonConnectUI.connected) {
         alert("Подключите кошелёк");
         return false;
     }
     
-    if (!userJettonWallet) {
-        alert("Jetton-кошелёк не найден");
-        return false;
-    }
-    
-    const amountNano = (amount * 1e9).toString();
-    const jettonWalletAddress = toUserFriendly(userJettonWallet);
-    const responseAddress = toUserFriendly(walletAddress);
-    
     log(`Стейкинг: ${amount} CER на ${period} дней`);
-    log(`Jetton-кошелёк: ${jettonWalletAddress}`);
     
     try {
-        // Получаем payload от сервера
-        const response = await fetch(`${PROXY_SERVER}/create-payload`, {
+        // Вызов AppKit через сервер-прокси
+        const response = await fetch(`${PROXY_SERVER}/api/stake`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                amountNano: amountNano,
-                comment: period.toString(),
-                destination: STAKING_CONTRACT,
-                responseAddress: responseAddress
+                userAddress: walletAddress,
+                amount: amount,
+                period: period,
+                jettonMaster: JETTON_MASTER,
+                stakingContract: STAKING_CONTRACT
             })
         });
         
@@ -146,17 +137,13 @@ async function stake(amount, period) {
             throw new Error(data.error);
         }
         
-        // Отправляем транзакцию через TonConnect
+        // Отправляем подготовленную транзакцию через TonConnect
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [{
-                address: jettonWalletAddress,
-                amount: "0",
-                payload: data.payload
-            }]
+            messages: data.messages
         };
         
-        const result = await tonConnectUI.sendTransaction(transaction);
+        await tonConnectUI.sendTransaction(transaction);
         log("✅ Транзакция отправлена!");
         alert("Стейкинг успешно отправлен!");
         return true;
@@ -223,39 +210,7 @@ document.getElementById("unstake-btn").onclick = async () => {
         alert("Подключите кошелёк");
         return;
     }
-    if (!userJettonWallet) {
-        alert("Jetton-кошелёк не найден");
-        return;
-    }
-    
-    const jettonWalletAddress = toUserFriendly(userJettonWallet);
-    const responseAddress = toUserFriendly(walletAddress);
-    
-    try {
-        const response = await fetch(`${PROXY_SERVER}/create-payload`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                amountNano: "1",
-                comment: "0",
-                destination: STAKING_CONTRACT,
-                responseAddress: responseAddress
-            })
-        });
-        
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error);
-        
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [{ address: jettonWalletAddress, amount: "0", payload: data.payload }]
-        };
-        
-        await tonConnectUI.sendTransaction(transaction);
-        alert("Запрос на вывод отправлен!");
-    } catch (error) {
-        alert("Ошибка: " + error.message);
-    }
+    alert("Функция unstake в разработке");
 };
 
 document.getElementById("add-reward").onclick = async () => {
@@ -264,43 +219,7 @@ document.getElementById("add-reward").onclick = async () => {
         alert("Введите сумму");
         return;
     }
-    if (!tonConnectUI || !tonConnectUI.connected) {
-        alert("Подключите кошелёк");
-        return;
-    }
-    if (!userJettonWallet) {
-        alert("Jetton-кошелёк не найден");
-        return;
-    }
-    
-    const jettonWalletAddress = toUserFriendly(userJettonWallet);
-    const responseAddress = toUserFriendly(walletAddress);
-    
-    try {
-        const response = await fetch(`${PROXY_SERVER}/create-payload`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                amountNano: (amount * 1e9).toString(),
-                comment: "777",
-                destination: STAKING_CONTRACT,
-                responseAddress: responseAddress
-            })
-        });
-        
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error);
-        
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [{ address: jettonWalletAddress, amount: "0", payload: data.payload }]
-        };
-        
-        await tonConnectUI.sendTransaction(transaction);
-        alert("Пул пополнен!");
-    } catch (error) {
-        alert("Ошибка: " + error.message);
-    }
+    alert("Функция пополнения пула в разработке");
 };
 
 document.getElementById("amount").addEventListener("input", calculateProfit);
