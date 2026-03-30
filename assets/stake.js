@@ -1,5 +1,6 @@
+// Импорт TonConnectUI (default import)
+import TonConnectUI from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
 // Импорт AppKit
-import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
 import { AppKit, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.4';
 
 // Контракты
@@ -11,6 +12,8 @@ const PROXY_SERVER = "https://cerstaking.bothost.tech";
 let walletAddress = null;
 let cerBalance = 0;
 let selectedPeriod = 30;
+let appKit = null;
+let tonConnectUI = null;
 
 // Логирование
 function log(msg) {
@@ -85,17 +88,13 @@ function calculateProfit() {
     }
 }
 
-// Инициализация AppKit
-let appKit;
-let tonConnectUI;
-
+// Инициализация TonConnect и AppKit
 async function initAppKit() {
     tonConnectUI = new TonConnectUI({
         manifestUrl: "https://brendbonus-star.github.io/cer-staking/tonconnect-manifest.json",
         buttonRootId: "connect-btn"
     });
     
-    // Ждём подключения
     tonConnectUI.onStatusChange(async (wallet) => {
         if (wallet) {
             walletAddress = wallet.account.address;
@@ -103,7 +102,7 @@ async function initAppKit() {
             document.getElementById("wallet-status").innerHTML = "✅ Кошелёк подключен";
             document.getElementById("wallet-address").innerHTML = walletAddress;
             
-            // Инициализируем AppKit после подключения
+            // Инициализация AppKit с прокси-сервером
             appKit = new AppKit({
                 networks: [Network.mainnet()],
                 connectors: [{
@@ -171,6 +170,23 @@ document.getElementById("stake-btn").onclick = async () => {
         return;
     }
     await stake(amount, period);
+};
+
+document.getElementById("unstake-btn").onclick = async () => {
+    if (!tonConnectUI || !tonConnectUI.connected) {
+        alert("Подключите кошелёк");
+        return;
+    }
+    alert("Функция unstake в разработке");
+};
+
+document.getElementById("add-reward").onclick = async () => {
+    const amount = parseFloat(document.getElementById("pool-amount").value);
+    if (!amount || amount <= 0) {
+        alert("Введите сумму");
+        return;
+    }
+    alert("Функция пополнения пула в разработке");
 };
 
 document.getElementById("amount").addEventListener("input", calculateProfit);
