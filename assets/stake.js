@@ -1,19 +1,14 @@
-// Импорт TonConnectUI (default import)
-import TonConnectUI from 'https://unpkg.com/@tonconnect/ui@2.3.0/dist/tonconnect-ui.min.js';
-// Импорт AppKit
-import { AppKit, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.4';
-
 // Контракты
 const STAKING_CONTRACT = "EQDChXJt60bhVjLmBE6xGxZKYJvkJrB2F7CGANsojF-lY3Lk";
 const JETTON_MASTER = "EQCeFJOkajBxztRloikZ9iUHhqnymZoX3pgxY47bbVlQuA3G";
 const PROXY_SERVER = "https://cerstaking.bothost.tech";
 
 // Состояние
+let tonConnectUI = null;
 let walletAddress = null;
+let userJettonWallet = null;
 let cerBalance = 0;
 let selectedPeriod = 30;
-let appKit = null;
-let tonConnectUI = null;
 
 // Логирование
 function log(msg) {
@@ -24,7 +19,31 @@ function log(msg) {
     console.log(msg);
 }
 
-// Получение баланса CER пользователя
+// Конвертация raw → user-friendly (bounceable)
+function toUserFriendly(raw) {
+    if (!raw) return null;
+    if (raw.startsWith('0:')) {
+        return 'EQ' + raw.slice(2);
+    }
+    return raw;
+}
+
+// Получение Jetton-кошелька
+async function getJettonWallet(address) {
+    try {
+        const response = await fetch(`https://tonapi.io/v2/accounts/${address}/jettons?jetton_master=${JETTON_MASTER}`);
+        const data = await response.json();
+        if (data && data.balances && data.balances.length > 0) {
+            return data.balances[0].wallet_address.address;
+        }
+        return null;
+    } catch (error) {
+        log("Ошибка получения Jetton-кошелька: " + error.message);
+        return null;
+    }
+}
+
+// Получение баланса CER
 async function fetchBalance() {
     if (!walletAddress) return;
     try {
@@ -88,9 +107,66 @@ function calculateProfit() {
     }
 }
 
-// Инициализация TonConnect и AppKit
-async function initAppKit() {
-    tonConnectUI = new TonConnectUI({
+// Стейкинг
+async function stake(amount, period) {
+    if (!tonConnectUI || !tonConnectUI.connected) {
+        alert("Подключите кошелёк");
+        return false;
+    }
+    
+    if (!userJettonWallet) {
+        alert("Jetton-кошелёк не найден");
+        return false;
+    }
+    
+    const amountNano = (amount * 1e9).toString();
+    const jettonWalletAddress = toUserFriendly(userJettonWallet);
+    const responseAddress = toUserFriendly(walletAddress);
+    
+    log(`Стейкинг: ${amount} CER на ${period} дней`);
+    log(`Jetton-кошелёк: ${jettonWalletAddress}`);
+    
+    try {
+        const response = await fetch(`${PROXY_SERVER}/create-payload`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                amountNano: amountNano,
+                comment: period.toString(),
+                destination: STAKING_CONTRACT,
+                responseAddress: responseAddress
+            })
+        });
+        
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error);
+        }
+        
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300,
+            messages: [{
+                address: jettonWalletAddress,
+                amount: "0",
+                payload: data.payload
+            }]
+        };
+        
+        const result = await tonConnectUI.sendTransaction(transaction);
+        log("✅ Транзакция отправлена!");
+        alert("Стейкинг успешно отправлен!");
+        return true;
+        
+    } catch (error) {
+        log("❌ Ошибка: " + error.message);
+        alert("Ошибка: " + error.message);
+        return false;
+    }
+}
+
+// Инициализация TonConnect
+function initTonConnect() {
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
         manifestUrl: "https://brendbonus-star.github.io/cer-staking/tonconnect-manifest.json",
         buttonRootId: "connect-btn"
     });
@@ -102,23 +178,18 @@ async function initAppKit() {
             document.getElementById("wallet-status").innerHTML = "✅ Кошелёк подключен";
             document.getElementById("wallet-address").innerHTML = walletAddress;
             
-            // Инициализация AppKit с прокси-сервером
-            appKit = new AppKit({
-                networks: [Network.mainnet()],
-                connectors: [{
-                    getProvider: () => tonConnectUI,
-                    name: 'TonConnect',
-                    type: 'injected'
-                }],
-                apiKey: 'd72cd242de2de30bfad0b95f4789fa866255fb4b80aeb00040749d25ac69ebdb',
-                apiBaseUrl: PROXY_SERVER
-            });
+            userJettonWallet = await getJettonWallet(walletAddress);
+            if (userJettonWallet) {
+                log("✅ Jetton-кошелёк: " + userJettonWallet);
+            } else {
+                log("❌ Jetton-кошелёк CER не найден");
+            }
             
             await fetchBalance();
             document.getElementById("admin-panel").style.display = "block";
         } else {
             walletAddress = null;
-            appKit = null;
+            userJettonWallet = null;
             log("🔌 Кошелёк отключен");
             document.getElementById("wallet-status").innerHTML = "⚡ Кошелёк не подключен";
             document.getElementById("wallet-address").innerHTML = "";
@@ -126,35 +197,6 @@ async function initAppKit() {
             document.getElementById("admin-panel").style.display = "none";
         }
     });
-}
-
-// Стейкинг через AppKit
-async function stake(amount, period) {
-    if (!appKit || !walletAddress) {
-        alert("Подключите кошелёк");
-        return false;
-    }
-    
-    log(`Стейкинг: ${amount} CER на ${period} дней`);
-    
-    try {
-        const result = await transferJetton(appKit, {
-            from: walletAddress,
-            to: STAKING_CONTRACT,
-            amount: amount.toString(),
-            jettonMaster: JETTON_MASTER,
-            comment: period.toString()
-        });
-        
-        log("✅ Транзакция отправлена!");
-        alert("Стейкинг успешно отправлен!");
-        return true;
-        
-    } catch (error) {
-        log("❌ Ошибка: " + error.message);
-        alert("Ошибка: " + error.message);
-        return false;
-    }
 }
 
 // Обработчики
@@ -193,7 +235,7 @@ document.getElementById("amount").addEventListener("input", calculateProfit);
 document.getElementById("lock-days").addEventListener("change", calculateProfit);
 
 // Запуск
-initAppKit();
+initTonConnect();
 fetchPoolData();
 setInterval(() => {
     if (walletAddress) fetchBalance();
