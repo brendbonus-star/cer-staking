@@ -1,5 +1,5 @@
 // Импорт TonConnectUI (default import)
-import TonConnectUI from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
+import TonConnectUI from 'https://unpkg.com/@tonconnect/ui@2.3.0/dist/tonconnect-ui.min.js';
 // Импорт AppKit
 import { AppKit, Network, transferJetton } from 'https://esm.sh/@ton/appkit@0.0.4';
 
